@@ -1,6 +1,6 @@
 import math
 
-from app.model import Q_FIELDS, VARIABLES
+from app.model import EDGES, Q_FIELDS, VARIABLES
 
 # Editable, synthetic example; these are not fitted company data or numbers
 # copied from the rejected implementation in the assignment.
@@ -25,9 +25,17 @@ def form_values(data=None):
         values[symbol+'_scale'] = 10
         values[symbol+'_minimum'] = variable['minimum']
     values.update(DEMO_PARAMETERS)
-    for i in range(1,99):
-        for k in range(4):
-            values[f'f{i}_A{k}'] = [.9, .1, 0, 0][k]
+    # Each source/target pair gets a distinct synthetic quadratic. All demo
+    # functions stay positive and increasing on [0, 1]; EDGES sets the sign.
+    curvatures = (.08, -.06, .12, -.04)
+    for target, edges in enumerate(EDGES):
+        for edge in edges:
+            source = edge['variable'] - 1
+            coefficients = (round(.76 + .015 * source, 3),
+                            round(.14 + .012 * target, 3),
+                            curvatures[(source + target) % len(curvatures)], 0)
+            for k, coefficient in enumerate(coefficients):
+                values[f"f{edge['function']}_A{k}"] = coefficient
     steps = [{'time':0,'value':.05},{'time':.5,'value':.1},{'time':.8,'value':.15}]
     if data:
         values.update(data['initial_variable_values'])
