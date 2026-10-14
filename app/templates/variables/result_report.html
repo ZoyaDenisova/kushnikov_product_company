@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Результаты моделирования{% endblock %}
 {% block body %}
-<h1>Показатели продуктовой компании</h1>
+<header class="page-heading"><p class="eyebrow">Результаты моделирования</p><h1>Показатели компании</h1></header>
 <p>Интервал t ∈ [{{ data.interval[0] }}, {{ data.interval[1] }}]. Полиномиальная аппроксимация степени {{ data.polynomial_degree }}.</p>
 
 <img class="result-graph" src="{{ url_for('static',filename='solution_graphs/'+plot_name+'.png') }}" alt="Динамика всех 15 показателей компании">

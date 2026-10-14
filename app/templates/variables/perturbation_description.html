@@ -1,5 +1,8 @@
+<div class="factor-description">
 <ul>{% for name in perturbation_names %}<li>q{{ loop.index }} — {{ name }}</li>{% endfor %}</ul>
 <p>q₁, q₂ = a + b·sin(c·t + d); q₅ = a·√t + b.</p>
 <p>q₃(t) = 0 при t ≤ 0,6; 0,3 при 0,6 &lt; t ≤ 0,8; 0,4 при t &gt; 0,8.</p>
 <p>q₄ — ступенчатая функция. В момент смены ступени действует новый уровень.</p>
 {% if data %}<details class="report-section"><summary>Параметры факторов и ступени q₄</summary><ul>{% for key,value in data.perturbation_parameters.items() %}{% if key != 'q4_steps' %}<li>{{ key }} = {{ value }}</li>{% endif %}{% endfor %}</ul><table class="table"><thead><tr><th>Начало ступени t</th><th>q₄</th></tr></thead><tbody>{% for step in data.perturbation_parameters.q4_steps %}<tr><td>{{ step.time }}</td><td>{{ step.value }}</td></tr>{% endfor %}</tbody></table></details>{% endif %}
+
+</div>

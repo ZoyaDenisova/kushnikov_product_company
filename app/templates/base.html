@@ -8,15 +8,20 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-<nav class="navbar navbar-light bg-light"><div class="container d-flex flex-wrap gap-3">
-    <a class="navbar-brand" href="{{ url_for('main.index') }}">Продуктовая компания</a>
-    <a href="{{ url_for('main.about') }}">О модели</a>
-    <a href="{{ url_for('main.documents') }}">Документация</a>
+<a class="skip-link" href="#main-content">Перейти к содержимому</a>
+<nav class="navbar" aria-label="Основная навигация"><div class="container">
+    <a class="navbar-brand" href="{{ url_for('main.index') }}"><span class="brand-mark" aria-hidden="true">ПК</span>Продуктовая компания</a>
+    <div class="nav-links">
+    <a href="{{ url_for('main.index') }}" {% if request.endpoint == 'main.index' %}aria-current="page"{% endif %}>Моделирование</a>
+    <a href="{{ url_for('main.about') }}" {% if request.endpoint == 'main.about' %}aria-current="page"{% endif %}>О модели</a>
+    <a href="{{ url_for('main.documents') }}" {% if request.endpoint == 'main.documents' %}aria-current="page"{% endif %}>Документация</a>
+    </div>
 </div></nav>
-<main class="container py-4">
+<main class="container" id="main-content">
 {% with messages = get_flashed_messages() %}{% for message in messages %}<p class="alert alert-info">{{ message }}</p>{% endfor %}{% endwith %}
 {% block body %}{% endblock %}
 </main>
+<footer class="site-footer"><span>Продуктовая компания</span><span>Моделирование и анализ показателей</span></footer>
 <script src="{{ url_for('static', filename='js/spinner.js') }}" defer></script>
 </body>
 </html>
