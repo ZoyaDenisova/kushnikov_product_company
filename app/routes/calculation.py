@@ -24,6 +24,7 @@ def calculate():
         injector.get('calculation_service').calculate(data,calculation_id)
     except ValueError as error:
         values, _ = form_values()
+        values = {key:'' for key in values}
         values.update(request.form.to_dict())
         indexes = sorted({int(key.rsplit('_',1)[1]) for key in request.form if key.startswith('q4_time_') and key.rsplit('_',1)[1].isdigit()})
         steps = [{'time':request.form.get(f'q4_time_{i}',''),'value':request.form.get(f'q4_value_{i}','')} for i in indexes] or [{'time':0,'value':''}]

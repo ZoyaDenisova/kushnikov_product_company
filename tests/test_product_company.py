@@ -366,16 +366,24 @@ class FlaskWorkflowTests(unittest.TestCase):
         self.patches.enter_context(patch.dict(self.app.config, {"TESTING": True}))
         self.client = self.app.test_client()
 
-    def test_fresh_form_has_only_assignment_minima_and_errors_preserve_input(self):
+    def test_demo_form_is_complete_bounded_and_errors_preserve_input(self):
         page = self.client.get("/")
         self.assertEqual(page.status_code, 200)
         fields = FormFields(page.get_data(as_text=True)).values
         for key in ("L1", "L15", "L1_scale", "L15_scale", "q1_a",
                     "q2_d", "q5_b", "polynomial_degree", "f1_A0", "f98_A3"):
-            self.assertEqual(fields[key], "", key)
+            self.assertNotEqual(fields[key], "", key)
         for variable in VARIABLES:
             self.assertEqual(float(fields[variable["symbol"]+"_minimum"]), variable["minimum"])
         self.assertNotIn("coefficient_example", MODEL)
+        self.assertEqual(int(fields['polynomial_degree']), 2)
+        demo = integrate_model(build_configuration(fields))
+        trajectory = np.array(demo['trajectory'])
+        self.assertGreater(trajectory.min(), .3)
+        self.assertLess(trajectory.max(), .9)
+        response = self.client.post('/calculate', data=fields)
+        self.assertEqual(response.status_code, 302)
+        saved_files = list(self.paths["PATH_TO_CALC_STORAGE_FILE"].iterdir())
 
         form = complete_form()
         form.update(L1="0.12345", q1_a="0.45678", f98_A0="0.76543",
@@ -387,7 +395,7 @@ class FlaskWorkflowTests(unittest.TestCase):
         for key in ("L1", "q1_a", "f98_A0", "q4_time_2", "q4_value_2"):
             self.assertEqual(failed_fields[key], form[key])
         self.assertEqual(failed_fields["L5_scale"], "")
-        self.assertEqual(list(self.paths["PATH_TO_CALC_STORAGE_FILE"].iterdir()), [])
+        self.assertEqual(list(self.paths["PATH_TO_CALC_STORAGE_FILE"].iterdir()), saved_files)
 
     def test_real_calculation_generates_unclipped_json_plots_and_pdf(self):
         form = complete_form()
