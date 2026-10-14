@@ -46,7 +46,7 @@
     <div class="panel-footer"><span>5 факторов внешней среды</span><button type="button" class="text-button" data-go-tab="influences">К функциям влияния {{ icon('arrow',17) }}</button></div>
   </section>
   <section class="panel tab-panel" id="influences" role="tabpanel" aria-labelledby="tab-influences">
-    <div class="panel-header"><div><h2>Функции взаимного влияния</h2><p>Коэффициенты связей между показателями компании. Новый сценарий содержит разные учебные полиномы; их параметры условные и редактируются.</p></div><span class="badge" id="coefficient-progress">98 функций</span></div>
+    <div class="panel-header"><div><h2>Функции взаимного влияния</h2><p>Коэффициенты связей между показателями компании.</p></div><span class="badge" id="coefficient-progress">98 функций</span></div>
     <div class="degree-bar"><label class="degree-control" for="polynomial_degree">Степень полиномов<select id="polynomial_degree" name="polynomial_degree" required><option value="" {% if values.polynomial_degree|string == '' %}selected{% endif %}>Выберите степень</option>{% for degree in range(4) %}<option value="{{ degree }}" {% if values.polynomial_degree|string == degree|string %}selected{% endif %}>{{ degree }} — {{ ['постоянные','линейные','квадратичные','кубические'][degree] }}</option>{% endfor %}</select></label><p class="factor-equation">f(x) = a₀ + a₁x + a₂x² + a₃x³</p></div>
     <p id="choose-degree-note" class="help-text">Выберите степень, чтобы открыть коэффициенты.</p>
     <div id="coefficient-groups" {% if values.polynomial_degree|string == '' %}hidden{% endif %}>
