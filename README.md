@@ -4,7 +4,7 @@
 A web application for determining the quality of designed information systems.
 
 ## Local Development
-* Use Python 3.12.
+* Use Python 3.13. Create a fresh environment when changing Python versions.
 * Install environment
 ```
 python -m venv .venv
