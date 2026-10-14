@@ -27,6 +27,8 @@ atexit.register(lambda: scheduler.shutdown())
 
 
 def create_app() -> Flask:
+    if app.extensions.get('product_company_initialized'):
+        return app
     init_settings: InitialSettings = dependency_injection_container_initialize()
     # Create folders for store data
     init_settings.create_storage_folder()
@@ -34,8 +36,17 @@ def create_app() -> Flask:
     init_settings.blueprint_registration()
     # Import error handlers
     init_settings.error_handlers()
+    app.extensions['product_company_initialized'] = True
 
     return app
+
+
+@app.context_processor
+def product_company_context():
+    from app.model import VARIABLES, MATRIX, EDGES, PERTURBATIONS, MODEL, equation_text
+    return dict(variables=VARIABLES, matrix=MATRIX, model_edges=EDGES,
+                perturbation_names=PERTURBATIONS,
+                equations=[equation_text(i) for i in range(15)], model=MODEL)
 
 
 def dependency_injection_container_initialize() -> InitialSettings:

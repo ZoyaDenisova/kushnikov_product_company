@@ -1,78 +1,54 @@
-import os
-from typing import NoReturn
+from pathlib import Path
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..utils.constants import Constants
+from app.model import VARIABLES, PERTURBATIONS, perturbations
+from app.utils.constants import Constants
 
 
 class GraphService:
-    def save_plot(self, calculation_id: str, Y: np.ndarray, X: np.ndarray) -> NoReturn:
-        """
-        Save plot of solving systems of difference equations
-        :param calculation_id: cookie value is equal to user session id
-        :param Y: matrix of solutions of a system of differential equations
-        :param X: time interval from 0 to 1
-        """
-        plot_path: str = Constants.PATH_SOLUTION_GRAPHS_IMAGE + calculation_id + '.png'
+    def save_plot(self, calculation_id, y, x):
+        fig, ax = plt.subplots(figsize=(13, 7))
+        for i, variable in enumerate(VARIABLES):
+            ax.plot(x, y[:, i], label=variable['symbol'] + ' — ' + variable['name'])
+        ax.set(xlabel='Время t', ylabel='Нормированное значение', title='Показатели продуктовой компании')
+        ax.grid(alpha=.3)
+        ax.legend(fontsize=8, loc='center left', bbox_to_anchor=(1, .5))
+        fig.savefig(Constants.PATH_SOLUTION_GRAPHS_IMAGE + calculation_id + '.png', bbox_inches='tight')
+        plt.close(fig)
 
-        plt.rcParams["figure.figsize"] = (15, 8)
+    def save_petal_plots(self, calculation_id, y, times, minima):
+        directory = Path(Constants.PATH_PETAL_GRAPHS_IMAGE) / calculation_id
+        directory.mkdir(parents=True, exist_ok=True)
+        angles = np.linspace(0, 2 * np.pi, len(VARIABLES), endpoint=False)
+        closed_angles = np.r_[angles, angles[0]]
+        lower = min(0, float(np.min(y)), min(minima))
+        upper = max(1, float(np.max(y)), max(minima))
+        for i, (values, time) in enumerate(zip(y, times), 1):
+            fig, ax = plt.subplots(figsize=(9, 8), subplot_kw={'projection': 'polar'})
+            ax.plot(closed_angles, np.r_[values, values[0]], 'o-', label='Расчётные значения')
+            ax.plot(closed_angles, np.r_[minima, minima[0]], 'r--', label='Минимальные значения')
+            ax.set_thetagrids(np.degrees(angles), [v['symbol'] for v in VARIABLES])
+            ax.set_title(f'Продуктовая компания: t={time:g}')
+            # The same full range on every snapshot allows comparison over time.
+            ax.set_ylim(lower, upper)
+            ax.legend(loc='upper right', bbox_to_anchor=(1.25, 1.15))
+            fig.savefig(directory / f'{i}.png', bbox_inches='tight')
+            plt.close(fig)
 
-        for i in range(0, 15):
-            plt.plot(X, Y[:, i], label='L' + str(i + 1))
-
-        plt.legend()
-        plt.savefig(plot_path)
-        plt.clf()
-
-    def save_petal_plots(self, calculation_id: str, Y: np.ndarray) -> NoReturn:
-        """
-        Function for creating petal diagrams showing changes
-        in the system of differential equations over time
-        :param calculation_id: cookie value is equal to user session id
-        :param Y: atrix of solutions of a system of differential equations
-        """
-        graph_counter: int = 1
-        graph_title: float = 0
-
-        for i in range(0, len(Y) - 1, 12):
-            if not os.path.exists(Constants.PATH_PETAL_GRAPHS_IMAGE + calculation_id):
-                os.makedirs(Constants.PATH_PETAL_GRAPHS_IMAGE + calculation_id)
-            plot_path: str = Constants.PATH_PETAL_GRAPHS_IMAGE + calculation_id + '/' + str(graph_counter) + '.png'
-            self.__draw_petal_graph(
-                graph_title=graph_title,
-                stats=Y[i, :],
-                minimals=np.append(Y[0, :] / 3, Y[0, 0] / 3)
-            )
-            plt.savefig(plot_path)
-
-            graph_counter += 1
-            graph_title += 0.25
-        plt.clf()
-
-    def __draw_petal_graph(self, graph_title: float, stats: list, minimals: list) -> NoReturn:
-        variables_list = ['L' + str(i) for i in range(1, 16)]
-        labels = np.array(variables_list)
-
-        angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False)
-        stats = np.concatenate((stats, [stats[0]]))
-        angles = np.concatenate((angles, [angles[0]]))
-        labels = np.concatenate((labels, [labels[0]]))
-
-        # Plot stuff
-        fig = plt.figure()
-        ax = fig.add_subplot(111, polar=True)
-
-        ax.plot(angles, stats, 'o-', linewidth=2)
-        ax.fill(angles, stats, alpha=0.25)
-
-        ax.plot(angles, minimals, 'r', linewidth=2)
-        ax.fill(angles, minimals, 'r', alpha=0.1)
-
-        # Add legend and title for the plot
-        plt.legend(labels=('Актуальные значения', 'Минимальные значения'), loc=1)
-
-        ax.set_thetagrids(angles * 180 / np.pi, labels)
-        ax.set_title("t=" + str(graph_title))
-        ax.grid(True)
+    def save_perturbations(self, calculation_id, x, parameters):
+        fig, ax = plt.subplots(figsize=(11, 6))
+        jumps = [.6, .8] + [step['time'] for step in parameters['q4_steps'][1:]]
+        extra = [np.nextafter(t, np.inf) for t in jumps if x[0] <= t < x[-1]]
+        x = np.unique(np.r_[x, extra])
+        values = np.array([perturbations(t, parameters) for t in x])
+        for i, title in enumerate(PERTURBATIONS):
+            ax.plot(x, values[:, i], label=f'q{i+1} — {title}')
+        ax.set(xlabel='Время t', ylabel='Значение фактора', title='Внешние факторы продуктовой компании')
+        ax.grid(alpha=.3)
+        ax.legend()
+        fig.savefig(Constants.PATH_SOLUTION_GRAPHS_IMAGE + calculation_id + '-q.png', bbox_inches='tight')
+        plt.close(fig)

@@ -1,170 +1,143 @@
 import json
 import math
-from typing import NoReturn
-import numpy as np
-from scipy.integrate import odeint
-from werkzeug.datastructures import ImmutableMultiDict
+from pathlib import Path
+import re
 
-from ..services.custom_exceptions.calculation_service_custom_exceptions import CalculationServiceCustomExceptions
-from ..services.graph_service import GraphService
-from ..utils.constants import Constants
-from ..utils.utils import Utils
+import numpy as np
+from scipy.integrate import solve_ivp
+
+from app.model import MODEL, VARIABLES, Q_FIELDS, derivative
+from app.utils.constants import Constants
+
+
+def finite_number(value, label):
+    try:
+        result = float(str(value).strip().replace(',', '.'))
+    except (TypeError, ValueError):
+        raise ValueError(f'{label}: введите число.')
+    if not math.isfinite(result):
+        raise ValueError(f'{label}: требуется конечное число.')
+    return result
+
+
+def build_configuration(form):
+    degree = finite_number(form.get('polynomial_degree'), 'Выберите степень полиномов')
+    if degree not in (0, 1, 2, 3):
+        raise ValueError('Степень полиномов должна быть целой: от 0 до 3.')
+    degree = int(degree)
+    initial, scales, minima = {}, [], []
+    for variable in VARIABLES:
+        symbol = variable['symbol']
+        initial[symbol] = finite_number(form.get(symbol), f'{symbol}: начальное значение')
+        scales.append(finite_number(form.get(symbol + '_scale'), f'{symbol}*: нормировка'))
+        minima.append(finite_number(form.get(symbol + '_minimum'), f'{symbol}: минимальный порог'))
+    if any(value <= 0 for value in scales):
+        raise ValueError('Все L* должны быть положительными.')
+    if any(not 0 <= value <= 1 for value in minima):
+        raise ValueError('Нормированные минимальные пороги должны быть от 0 до 1.')
+    start = finite_number(form.get('t_start'), 'Начало интервала')
+    end = finite_number(form.get('t_end'), 'Конец интервала')
+    if not 0 <= start < end:
+        raise ValueError('Укажите интервал 0 ≤ начало < конец. Время не может быть отрицательным из-за √t в q₅.')
+    parameters = {key: finite_number(form.get(key), key) for key in Q_FIELDS}
+    indexes = sorted({int(match.group(1)) for key in form for match in [re.fullmatch(r'q4_time_(\d+)', key)] if match})
+    value_indexes = sorted({int(match.group(1)) for key in form for match in [re.fullmatch(r'q4_value_(\d+)', key)] if match})
+    if not indexes or indexes != list(range(len(indexes))) or indexes != value_indexes:
+        raise ValueError('Задайте последовательный список ступеней q₄.')
+    steps = [{'time': finite_number(form.get(f'q4_time_{i}'), f'q₄: время ступени {i+1}'),
+              'value': finite_number(form.get(f'q4_value_{i}'), f'q₄: уровень ступени {i+1}')} for i in indexes]
+    if steps[0]['time'] != 0 or any(right['time'] <= left['time'] for left, right in zip(steps, steps[1:])):
+        raise ValueError('Первая ступень q₄ начинается при t=0; времена следующих ступеней должны строго возрастать.')
+    parameters['q4_steps'] = steps
+    coefficients = {}
+    for i in range(1, 99):
+        coefficients[f'f{i}'] = {f'A{k}': finite_number(form.get(f'f{i}_A{k}'), f'f{i}: a{k}') if k <= degree else 0 for k in range(4)}
+    return {'model_version': MODEL['version'], 'polynomial_degree': degree,
+            'polynomial_coefficients': coefficients, 'initial_variable_values': initial,
+            'scales': scales, 'minima': minima, 'interval': [start, end], 'perturbation_parameters': parameters}
+
+
+def integrate_model(data):
+    start, end = data['interval']
+    parameters, minima = data['perturbation_parameters'], data['minima']
+    y0 = np.array([data['initial_variable_values'][v['symbol']] for v in VARIABLES], dtype=float)
+    jumps = [.6, .8] + [step['time'] for step in parameters['q4_steps'][1:]]
+    boundaries = sorted({start, end, *[t for t in jumps if start < t < end]})
+    snapshots = np.linspace(start, end, 5)
+    points = set(np.linspace(start, end, 201)) | set(boundaries) | set(snapshots)
+    first_breach = [start if y0[i] < minima[i] else None for i in range(15)]
+    segments = []
+    evaluations = 0
+    for left, right in zip(boundaries, boundaries[1:]):
+        def rhs(t, values):
+            nonlocal evaluations
+            evaluations += 1
+            if evaluations > 200000:
+                raise ValueError('Расчёт не сходится за разумное число шагов. Проверьте коэффициенты или уменьшите интервал.')
+            t = min(max(t, np.nextafter(left, right)), np.nextafter(right, left))
+            with np.errstate(over='raise', invalid='raise'):
+                return derivative(t, values, data['polynomial_coefficients'], data['scales'], parameters)
+        events = []
+        for i, minimum in enumerate(minima):
+            def crossing(t, values, i=i, minimum=minimum):
+                return values[i] - minimum
+            crossing.direction = -1
+            events.append(crossing)
+        try:
+            solution = solve_ivp(rhs, (left, right), y0, dense_output=True, events=events, rtol=1e-9, atol=1e-11)
+        except (FloatingPointError, OverflowError):
+            raise ValueError('Решение расходится до бесконечности. Проверьте коэффициенты или сократите интервал.')
+        if not solution.success:
+            raise ValueError('Численное решение не сошлось: ' + solution.message)
+        for i, times in enumerate(solution.t_events):
+            for time in times:
+                # A stationary value equal to the threshold is not a breach.
+                if rhs(time, solution.sol(time))[i] < 0:
+                    if first_breach[i] is None:
+                        first_breach[i] = float(time)
+                    points.add(float(time))
+        segments.append((left, right, solution.sol))
+        y0 = solution.y[:, -1]
+    x = np.array(sorted(points))
+    y = np.empty((len(x), 15))
+    snapshot_values = np.empty((5, 15))
+    for left, right, dense in segments:
+        mask = (x >= left) & (x <= right)
+        y[mask] = dense(x[mask]).T
+        mask_snapshots = (snapshots >= left) & (snapshots <= right)
+        if np.any(mask_snapshots):
+            snapshot_values[mask_snapshots] = dense(snapshots[mask_snapshots]).T
+    if not np.all(np.isfinite(y)):
+        raise ValueError('Получены неконечные значения решения.')
+    below = [bool(value < minimum) for value, minimum in zip(y[-1], minima)]
+    ever = [bool(first_breach[i] is not None or np.any(y[:, i] < minima[i])) for i in range(15)]
+    return {'solution': y[-1].tolist(), 'times': x.tolist(), 'trajectory': y.tolist(),
+            'snapshot_times': snapshots.tolist(), 'snapshot_values': snapshot_values.tolist(),
+            'below_minimum': below, 'ever_below_minimum': ever, 'first_breach': first_breach,
+            'minimum_values': y.min(axis=0).tolist(),
+            'outside_unit_interval': [bool(np.any((y[:, i] < 0) | (y[:, i] > 1))) for i in range(15)]}
 
 
 class CalculationService:
-    def __init__(self, utils: Utils, graph_service: GraphService):
-        self.__utils = utils
-        self.__graph_service = graph_service
+    def __init__(self, utils, graph_service):
+        self.graph_service = graph_service
 
-        self.__data_dict: dict = {}
-        self.__polynomial_coefficients_key = 'polynomial_coefficients'
-        self.__initial_variable_values_key = 'initial_variable_values'
+    def path(self, calculation_id):
+        if not calculation_id or not calculation_id.isdigit():
+            raise ValueError('Сначала выполните расчёт.')
+        return Path(Constants.PATH_TO_CALC_STORAGE_FILE) / (calculation_id + '.json')
 
-    def get_input_user_parameters(self, calculation_id: str) -> tuple:
-        """
-        Get input polynomial coefficients & initial variable values
-        to display it to user in final report
-        :param calculation_id: cookie value is equal to user session id
-        :return: polynomial coefficients dictionary and initial variable values dictionary
-        """
-        with open('{path}{id}.json'.format(path=Constants.PATH_TO_CALC_STORAGE_FILE, id=calculation_id), 'r') as file:
-            data = json.load(file)
-        return data.get(self.__polynomial_coefficients_key), data.get(self.__initial_variable_values_key)
+    def read(self, calculation_id):
+        data = json.loads(self.path(calculation_id).read_text(encoding='utf-8'))
+        if data.get('model_version') != MODEL['version']:
+            raise ValueError('Этот расчёт относится к прежней модели. Начните новый.')
+        return data
 
-    def solve_difference_equations(self, calculation_id: str) -> dict:
-        """
-        Solving a system of differential equations
-        in accordance with the developed mathematical model
-        and the parameters entered by the user for the current session
-        :param calculation_id: cookie value is equal to user session id
-        :return: dict which contains all systems solutions for t = 1
-        """
-        with open('{path}{id}.json'.format(path=Constants.PATH_TO_CALC_STORAGE_FILE, id=calculation_id), 'r') as file:
-            data = json.load(file)
-            self.__data_dict = data
-
-        Y, X = self.__solve_systems_of_difference_equations(data=self.__data_dict)
-        self.__graph_service.save_plot(calculation_id=calculation_id, Y=Y, X=X)
-        self.__graph_service.save_petal_plots(calculation_id=calculation_id, Y=Y)
-
-        return {'solution': Y[-1, :15].tolist()}
-
-    def append_initial_variable_values(self, calculation_id: str, form: ImmutableMultiDict) -> NoReturn:
-        """
-        Add root key 'initial_variable_values' to result json
-        :param calculation_id: cookie value is equal to user session id
-        :param form: requested form with initial varibles values
-        """
-        calculation_storage_file_path: str = '{path}{id}.json'.format(
-            path=Constants.PATH_TO_CALC_STORAGE_FILE,
-            id=calculation_id
-        )
-        with open(calculation_storage_file_path, 'r') as file:
-            data = json.load(file)
-
-        if self.__initial_variable_values_key not in data:
-            result_dictionary: dict = {self.__initial_variable_values_key: self.__parse_initial_values(form=form)}
-            data.update(result_dictionary)
-
-            with open(calculation_storage_file_path, 'w') as file:
-                json.dump(data, file, indent=4)
-
-    def __parse_initial_values(self, form: ImmutableMultiDict) -> dict:
-        result_dict: dict = dict()
-        for field in form.items():
-            try:
-                result_dict[field[0]] = field[1]
-            except Exception:
-                raise CalculationServiceCustomExceptions.ParsingException('Parsing exception')
-        return result_dict
-
-    def __solve_systems_of_difference_equations(self, data: dict) -> tuple:
-        X = np.linspace(0, 1, 50)
-        Y = None
-        niter = 100
-        u = 0
-        tol = 0.1
-        ustep = 0.05
-
-        for i in range(niter):
-            u += ustep
-            Y = odeint(
-                self.__describe_difference_equations,
-                self.__get_initial_variable_values(
-                    session_data_variable_values=data.get(self.__initial_variable_values_key)
-                ),
-                X
-            )
-            # Normalize array
-            for normalize_row in range(len(Y)):
-                for normalize_column in range(len(Y[normalize_row])):
-                    if Y[normalize_row][normalize_column] > 1.0:
-                        Y[normalize_row][normalize_column] = 1.0
-                    elif Y[normalize_row][normalize_column] < 0.0:
-                        Y[normalize_row][normalize_column] = 0.0
-
-            if abs(Y[len(Y) - 1, 1] - 1) < tol:
-                break
-        return Y, X
-
-    def __describe_difference_equations(self, y: np.ndarray, x: float) -> list:
-        # Get polynomial coefficients
-        cf: dict = self.__data_dict.get(self.__polynomial_coefficients_key)
-
-        # Perturbations
-        q1 = 0.8 if x > 0.65 else 0.8 * x + 0.35
-        q2 = 0.9 if x > 0.7 else 0.9 * x + 0.2
-        q3 = 0.3
-        q4 = 0.25 * math.sin(x)
-        q5 = 0.5
-
-        # Variables
-        dL1 = self.__multiplicate_polynomials('1', 1, 7, cf, y, is_incremental=True) * (q1 + q2) - q3
-        dL2 = self.__multiplicate_polynomials('2', 7, 12, cf, y, is_incremental=True) * (q2 + q5) - q4
-        dL3 = self.__multiplicate_polynomials('3', 12, 19, cf, y, is_incremental=True) * q2 - q5
-        dL4 = self.__multiplicate_polynomials('4', 19, 28, cf, y, is_incremental=True) * q2 \
-              - self.__multiplicate_polynomials('4', 28, 29, cf, y, is_incremental=False)
-        dL5 = self.__multiplicate_polynomials('5', 29, 36, cf, y, is_incremental=True) * (q1 + q2 + q3) \
-              - self.__multiplicate_polynomials('5', 36, 37, cf, y, is_incremental=False)
-        dL6 = self.__multiplicate_polynomials('6', 37, 42, cf, y, is_incremental=True) * (q1 + q3) \
-              - self.__multiplicate_polynomials('6', 42, 43, cf, y, is_incremental=False)
-        dL7 = self.__multiplicate_polynomials('7', 43, 47, cf, y, is_incremental=True) * (q3 + q4) \
-              - self.__multiplicate_polynomials('7', 47, 48, cf, y, is_incremental=False)
-        dL8 = self.__multiplicate_polynomials('8', 48, 54, cf, y, is_incremental=True) * q3 \
-              - self.__multiplicate_polynomials('8', 54, 56, cf, y, is_incremental=False)
-        dL9 = self.__multiplicate_polynomials('9', 56, 58, cf, y, is_incremental=True) * (q1 + q3 + q4) \
-              - self.__multiplicate_polynomials('9', 58, 63, cf, y, is_incremental=False)
-        dL10 = self.__multiplicate_polynomials('10', 63, 69, cf, y, is_incremental=True) * (q2 + q5) \
-               - self.__multiplicate_polynomials('10', 69, 70, cf, y, is_incremental=False)
-        dL11 = self.__multiplicate_polynomials('11', 70, 75, cf, y, is_incremental=True) * (q1 + q3) \
-               - self.__multiplicate_polynomials('11', 75, 77, cf, y, is_incremental=False)
-        dL12 = self.__multiplicate_polynomials('12', 77, 80, cf, y, is_incremental=True) * (q1 + q2 + q5) \
-               - self.__multiplicate_polynomials('12', 80, 81, cf, y, is_incremental=False)
-        dL13 = self.__multiplicate_polynomials('13', 81, 88, cf, y, is_incremental=True) * (q1 + q2) - q4
-        dL14 = self.__multiplicate_polynomials('14', 88, 92, cf, y, is_incremental=True) * (q2 + q3) - q5
-        dL15 = self.__multiplicate_polynomials('15', 92, 99, cf, y, is_incremental=True) * (q1 + q2 + q5) - q3
-
-        return [dL1, dL2, dL3, dL4, dL5, dL6, dL7, dL8, dL9, dL10, dL11, dL12, dL13, dL14, dL15]
-
-    def __get_initial_variable_values(self, session_data_variable_values: dict) -> np.array:
-        return np.array([float(i) for i in list(session_data_variable_values.values())])
-
-    def __multiplicate_polynomials(self,
-                                   variable_number: str,
-                                   lower_polynomial_bound: int,
-                                   upper_polynomial_bound: int,
-                                   cf: dict,
-                                   y: np.ndarray,
-                                   is_incremental: bool = True) -> float:
-        multiplication_result: float = 1.0
-        polynomial_coefficients: list = list(range(lower_polynomial_bound, upper_polynomial_bound))
-        related_variables: list = Constants.VARIABLES_DESCRIPTION \
-            .get(variable_number) \
-            .get('incremental_related_variables' if is_incremental else 'decremental_related_variables')
-
-        for variable_number, polynomial_coefficient in zip(related_variables, polynomial_coefficients):
-            multiplication_result *= float(cf['f' + str(polynomial_coefficient)]['A0']) + \
-                                     float(cf['f' + str(polynomial_coefficient)]['A1']) * y[variable_number] + \
-                                     float(cf['f' + str(polynomial_coefficient)]['A2']) * (y[variable_number] ** 2)
-
-        return multiplication_result
+    def calculate(self, configuration, calculation_id):
+        result = integrate_model(configuration)
+        self.graph_service.save_plot(calculation_id, np.array(result['trajectory']), np.array(result['times']))
+        self.graph_service.save_petal_plots(calculation_id, np.array(result['snapshot_values']), np.array(result['snapshot_times']), configuration['minima'])
+        self.graph_service.save_perturbations(calculation_id, np.array(result['times']), configuration['perturbation_parameters'])
+        configuration['result'] = result
+        self.path(calculation_id).write_text(json.dumps(configuration, ensure_ascii=False, indent=2, allow_nan=False), encoding='utf-8')
+        return configuration

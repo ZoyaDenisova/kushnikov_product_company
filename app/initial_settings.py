@@ -27,7 +27,4 @@ class InitialSettings:
             os.makedirs(Constants.PATH_PETAL_GRAPHS_IMAGE)
 
     def error_handlers(self):
-        # Import HTTP base error handlers
-        from app.routes.error_handlers import page_not_found
-        from app.routes.error_handlers import page_not_avaliable
-        from app.routes.error_handlers import page_forbidden
+        from app.routes import error_handlers

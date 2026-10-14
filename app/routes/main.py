@@ -1,24 +1,22 @@
-# Routes
-from flask import render_template, Blueprint, request, flash, redirect, url_for
+from flask import render_template, Blueprint, request, redirect, url_for
+from app import injector
+from app.form_defaults import form_values, Q_GROUPS
+from app.utils.constants import Constants
 
-from ..utils.constants import Constants
-from ..utils.flask_inject import inject
-from ..utils.utils import Utils
-
-main = Blueprint('main', __name__, template_folder='templates')
+main = Blueprint('main',__name__)
 
 
 @main.route('/')
-@inject('utils')
-def index(utils: Utils):
-    calculation_id_cookie_value: str = request.cookies.get(Constants.CALCULATION_ID_COOKIE_NAME)
-    counter_cookie_value: str = request.cookies.get(Constants.PAGE_COUNTER_COOKIE_NAME)
-    session_already_exist: bool = utils.check_cookie_exists(cookie_value=calculation_id_cookie_value) \
-                                  and utils.check_cookie_exists(cookie_value=counter_cookie_value)
-    return render_template(
-        'main/index.html',
-        session_already_exist=session_already_exist
-    )
+def index():
+    data = None
+    calculation_id = request.cookies.get(Constants.CALCULATION_ID_COOKIE_NAME,'')
+    if calculation_id.isdigit():
+        try:
+            data = injector.get('calculation_service').read(calculation_id)
+        except (ValueError,FileNotFoundError):
+            pass
+    values,steps = form_values(data)
+    return render_template('main/index.html',values=values,steps=steps,q_groups=Q_GROUPS,has_result=bool(data))
 
 
 @main.route('/about')
@@ -34,7 +32,5 @@ def documents():
 @main.route('/clear-session')
 def clear_session():
     response = redirect(url_for('main.index'))
-    response.delete_cookie(Constants.PAGE_COUNTER_COOKIE_NAME)
     response.delete_cookie(Constants.CALCULATION_ID_COOKIE_NAME)
-    flash(u'Ваша предыдущая сессия очищена успешно')
     return response

@@ -1,44 +1,22 @@
-from flask import render_template, url_for, redirect, flash
-
+from flask import render_template, redirect, url_for, flash
+from werkzeug.exceptions import HTTPException
 from app import app
-from ..services.custom_exceptions.calculation_service_custom_exceptions import CalculationServiceCustomExceptions
-from ..services.custom_exceptions.polynomial_service_custom_exceptions import PolynomialServiceCustomExceptions
 
 
-@app.errorhandler(404)
-def page_not_found(e):
-    return render_template('errors/404.html'), 404
-
-
-@app.errorhandler(403)
-def page_forbidden(e):
-    return render_template('errors/403.html'), 403
-
-
-@app.errorhandler(410)
-def page_not_avaliable(e):
-    return render_template('errors/410.html'), 410
+@app.errorhandler(ValueError)
+def invalid_input(error):
+    return render_template('errors/invalid_input.html', message=str(error)), 400
 
 
 @app.errorhandler(FileNotFoundError)
-def handle_base_exception(exception):
-    flash(u'Ошибка обработки вашей сессии. Начните ввод данных заново!')
-    return redirect(url_for('main.index'))
-
-
-@app.errorhandler(PolynomialServiceCustomExceptions.ParsingException)
-def handle_base_exception(exception):
-    flash(u'Ошибка обработки полиномиальных коэффициентов')
-    return redirect(url_for('main.index'))
-
-
-@app.errorhandler(CalculationServiceCustomExceptions.ParsingException)
-def handle_base_exception(exception):
-    flash(u'Ошибка обработки начальных значений переменных')
+def missing_session(error):
+    flash('Сессия не найдена. Начните новый расчёт.')
     return redirect(url_for('main.index'))
 
 
 @app.errorhandler(Exception)
-def handle_base_exception(exception):
-    flash(u'Непредвиденная ошибка')
-    return redirect(url_for('main.index'))
+def unexpected_error(error):
+    if isinstance(error, HTTPException):
+        return error
+    app.logger.exception('Calculation request failed')
+    return render_template('errors/invalid_input.html', message='Не удалось выполнить расчёт. Проверьте введённые параметры.'), 500
