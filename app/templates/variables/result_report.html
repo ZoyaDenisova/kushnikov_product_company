@@ -31,7 +31,14 @@
 <section class="panel"><div class="panel-header"><div><h2>Внешние факторы</h2><p>Изменение условий работы компании во времени.</p></div><span class="badge">q₁ — q₅</span></div><img class="result-graph" src="{{ url_for('static',filename='solution_graphs/'+plot_name+'-q.png') }}" alt="Графики внешних факторов q1–q5" loading="lazy"></section>
 <details class="report-section"><summary>Функции и параметры внешних факторов</summary>{% include 'variables/perturbation_description.html' %}</details>
 <div class="panel-header"><div><h2>Состояние компании во времени</h2><p>Красным на диаграммах обозначены минимальные пороги.</p></div></div>
-<div class="snapshot-grid">{% for t in data.result.snapshot_times %}<details class="report-section"><summary>t = {{ '%.7g'|format(t) }}</summary><img class="result-graph" src="{{ url_for('static',filename='petal_graphs/'+plot_name+'/'+loop.index|string+'.png') }}" alt="Лепестковая диаграмма при t={{ t }}" loading="lazy"></details>{% endfor %}</div>
+<div class="snapshot-grid">
+  {% for t in data.result.snapshot_times %}
+  <figure class="snapshot-card">
+    <figcaption><h3>t = {{ '%.7g'|format(t) }}</h3><span class="badge">Состояние {{ loop.index }}</span></figcaption>
+    <img class="result-graph" src="{{ url_for('static',filename='petal_graphs/'+plot_name+'/'+loop.index|string+'.png') }}" alt="Лепестковая диаграмма при t={{ t }}" loading="lazy">
+  </figure>
+  {% endfor %}
+</div>
 <details class="report-section"><summary>Коэффициенты полиномов</summary><div class="table-responsive"><table class="table"><thead><tr><th>Функция</th>{% for k in range(data.polynomial_degree+1) %}<th>a{{ k }}</th>{% endfor %}</tr></thead><tbody>{% for f,c in data.polynomial_coefficients.items() %}<tr><th>{{ f }}</th>{% for k in range(data.polynomial_degree+1) %}<td>{{ c['A'+k|string] }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></details>
 <div class="bottom-actions"><a class="text-button muted" href="{{ url_for('main.clear_session') }}">{{ icon('refresh',16) }}Новая модель</a><a class="btn btn-primary" href="{{ url_for('main.index') }}">Изменить параметры {{ icon('arrow',17) }}</a></div>
 <script type="application/json" id="chart-data">{{ {'times':data.result.times, 'trajectory':data.result.trajectory, 'variables':variables}|tojson }}</script>

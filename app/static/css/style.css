@@ -205,8 +205,11 @@ summary:hover { background: #fafcf6; }
 .report-section .table-responsive { margin: 0 18px 18px; }
 .report-section .equation { margin: 18px; }
 .report-section .result-graph { padding: 18px; max-width: 900px; }
-.snapshot-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
-.snapshot-grid .report-section { margin: 0; }
+.snapshot-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; align-items: start; }
+.snapshot-card { margin: 0; min-width: 0; overflow: hidden; background: white; border: 1px solid var(--line); border-radius: 10px; }
+.snapshot-card figcaption { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.snapshot-card h3 { margin: 0; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.snapshot-card .result-graph { padding: 12px; }
 .result-table th .symbol { margin-right: 8px; }
 .result-table .breach td:last-child { color: #c17650; }
 .no-js-graph { margin: 20px; }
