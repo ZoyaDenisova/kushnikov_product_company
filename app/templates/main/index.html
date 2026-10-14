@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}
+    Главная
+{% endblock %}
+
+{% block body %}
+    <h1>Система оценки качества разрабатываемого <br/> программного обеспечения</h1>
+    <br/>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div id="list-notification"
+                 class="alert alert-danger">
+                {{ messages[0] }}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <a href="{{ url_for('calculation.initial_setup') }}" class="btn btn-info" role="button">Начать</a>
+    {% if session_already_exist %}
+        <a href="{{ url_for('calculation.continue_setting_up') }}" class="btn btn-success" role="button">Продолжить</a>
+        <a href="{{ url_for('main.clear_session') }}" class="btn btn-danger" role="button">Очистить сессию</a>
+    {% endif %}
+{% endblock %}

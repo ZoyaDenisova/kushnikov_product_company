@@ -1,0 +1,25 @@
+{% extends "base_variables.html" %}
+
+{% block title %}
+    {{ variable_title }}
+{% endblock %}
+
+{% block variable_name %}
+    {{ variable_name }}
+{% endblock %}
+
+{% block variable_graph_image %}
+    <img src="{{ url_for('static', filename='images/graphs/L{variable_number}-graph.png'.format(variable_number=variable_number)) }}"
+         class="img-fluid thumbnail zoom">
+{% endblock %}
+
+{% block variable_form %}
+    <!--Include form-->
+    {% with lower_bound=lower_bound,
+            upper_bound=upper_bound,
+            variable_number=variable_number,
+            form_action=url_for(form_action_url) %}
+        {% include 'variables/polynomial_coefficients_form_component.html' %}
+    {% endwith %}
+    <!--End include form-->
+{% endblock %}
