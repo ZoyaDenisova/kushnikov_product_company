@@ -5,7 +5,9 @@ screenshots or its example coefficient table.  Each right-hand side below is
 transcribed separately from table 2; it deliberately does not use EDGES.
 """
 import math
+import json
 import os
+import re
 from contextlib import ExitStack
 from html.parser import HTMLParser
 from pathlib import Path
@@ -410,7 +412,8 @@ class FlaskWorkflowTests(unittest.TestCase):
         self.assertIsNotNone(cookie)
         calculation_id = cookie.value
         self.assertTrue(calculation_id.isdigit())
-        self.assertEqual(self.client.get("/result").status_code, 200)
+        report = self.client.get("/result")
+        self.assertEqual(report.status_code, 200)
 
         data_response = self.client.get("/get-data")
         self.assertEqual(data_response.status_code, 200)
@@ -420,6 +423,15 @@ class FlaskWorkflowTests(unittest.TestCase):
         self.assertEqual(len(data["perturbation_parameters"]["q4_steps"]), 4)
         self.assertEqual(len(data["polynomial_coefficients"]), 98)
         trajectory = np.array(data["result"]["trajectory"])
+        chart_source = re.search(
+            r'<script type="application/json" id="chart-data">(.*?)</script>',
+            report.get_data(as_text=True), re.S)
+        self.assertIsNotNone(chart_source)
+        chart = json.loads(chart_source.group(1))
+        self.assertEqual(chart['times'], data['result']['times'])
+        np.testing.assert_array_equal(chart['trajectory'], trajectory)
+        self.assertEqual([v['symbol'] for v in chart['variables']],
+                         [v['symbol'] for v in VARIABLES])
         self.assertGreater(trajectory.max(), 1)
         self.assertLess(trajectory.min(), 0)
         self.assertLess(data["result"]["solution"][7], 0)

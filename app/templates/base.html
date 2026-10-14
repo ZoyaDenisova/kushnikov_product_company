@@ -1,27 +1,36 @@
+{% from 'components/icons.html' import icon %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}{% endblock %} | Продуктовая компания</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#202928">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+  <title>{% block title %}{% endblock %} | Продуктовая компания</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='3') }}">
 </head>
 <body>
 <a class="skip-link" href="#main-content">Перейти к содержимому</a>
-<nav class="navbar" aria-label="Основная навигация"><div class="container">
-    <a class="navbar-brand" href="{{ url_for('main.index') }}"><span class="brand-mark" aria-hidden="true">ПК</span>Продуктовая компания</a>
-    <div class="nav-links">
-    <a href="{{ url_for('main.index') }}" {% if request.endpoint == 'main.index' %}aria-current="page"{% endif %}>Моделирование</a>
-    <a href="{{ url_for('main.about') }}" {% if request.endpoint == 'main.about' %}aria-current="page"{% endif %}>О модели</a>
-    <a href="{{ url_for('main.documents') }}" {% if request.endpoint == 'main.documents' %}aria-current="page"{% endif %}>Документация</a>
-    </div>
-</div></nav>
-<main class="container" id="main-content">
-{% with messages = get_flashed_messages() %}{% for message in messages %}<p class="alert alert-info">{{ message }}</p>{% endfor %}{% endwith %}
-{% block body %}{% endblock %}
-</main>
-<footer class="site-footer"><span>Продуктовая компания</span><span>Моделирование и анализ показателей</span></footer>
-<script src="{{ url_for('static', filename='js/spinner.js') }}" defer></script>
+<aside class="sidebar">
+  <a class="brand" href="{{ url_for('main.index') }}"><span class="brand-mark" aria-hidden="true">{{ icon('chart',23) }}</span><span>Продуктовая<br> <strong>компания</strong></span></a>
+  <div class="sidebar-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+  <nav class="side-nav" aria-label="Основная навигация">
+    <a href="{{ url_for('main.index') }}" aria-label="Моделирование" title="Моделирование" {% if request.endpoint == 'main.index' or request.endpoint == 'calculation.calculate' %}aria-current="page"{% endif %}>{{ icon('sliders') }}<span>Моделирование</span></a>
+    {% if saved_result or has_result or data %}<a href="{{ url_for('calculation.result_report') }}" aria-label="Результаты" title="Результаты" {% if request.endpoint == 'calculation.result_report' %}aria-current="page"{% endif %}>{{ icon('chart') }}<span>Результаты</span></a>{% endif %}
+    <a href="{{ url_for('main.about') }}" aria-label="О модели" title="О модели" {% if request.endpoint == 'main.about' %}aria-current="page"{% endif %}>{{ icon('grid') }}<span>О модели</span></a>
+    <a href="{{ url_for('main.documents') }}" aria-label="Документация" title="Документация" {% if request.endpoint == 'main.documents' %}aria-current="page"{% endif %}>{{ icon('book') }}<span>Документация</span></a>
+  </nav>
+  <div class="sidebar-bottom"><div class="model-stamp"><span class="status-dot"></span>Динамическая модель</div><p>15 показателей · 5 факторов<br>98 функций влияния</p><a href="{{ url_for('main.documents') }}">Уравнения и связи {{ icon('arrow',15) }}</a></div>
+</aside>
+<div class="app-shell">
+  <div class="topbar"><span class="breadcrumb">Рабочее пространство <span>/</span> {% block breadcrumb %}Продуктовая компания{% endblock %}</span><span class="topbar-tag">Системная динамика</span></div>
+  <main id="main-content" class="workspace">
+    {% with messages = get_flashed_messages() %}{% for message in messages %}<p class="alert alert-info">{{ message }}</p>{% endfor %}{% endwith %}
+    {% block body %}{% endblock %}
+  </main>
+  <footer class="site-footer"><span>Продуктовая компания</span><span>Моделирование и анализ показателей</span></footer>
+</div>
+<script src="{{ url_for('static', filename='js/spinner.js', v='3') }}" defer></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

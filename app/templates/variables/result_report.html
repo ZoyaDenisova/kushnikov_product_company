@@ -1,18 +1,39 @@
 {% extends "base.html" %}
 {% block title %}Результаты моделирования{% endblock %}
+{% block breadcrumb %}Результаты{% endblock %}
 {% block body %}
-<header class="page-heading"><p class="eyebrow">Результаты моделирования</p><h1>Показатели компании</h1></header>
-<p>Интервал t ∈ [{{ data.interval[0] }}, {{ data.interval[1] }}]. Полиномиальная аппроксимация степени {{ data.polynomial_degree }}.</p>
-
-<img class="result-graph" src="{{ url_for('static',filename='solution_graphs/'+plot_name+'.png') }}" alt="Динамика всех 15 показателей компании">
-<h2>Значения и минимальные пороги</h2><p class="help-text">Подсвечены показатели, которые опускались ниже заданного минимального порога.</p>
-<div class="table-responsive"><table class="table result-table"><thead><tr><th>Показатель</th><th>Начальное</th><th>L*</th><th>Порог</th><th>Конечное</th><th>Первое нарушение порога</th></tr></thead><tbody>
-{% for v in variables %}{% set i=loop.index0 %}<tr {% if data.result.ever_below_minimum[i] %}class="breach"{% endif %}><th>{{ v.symbol }} — {{ v.name }}</th><td>{{ '%.6g'|format(data.initial_variable_values[v.symbol]) }}</td><td>{{ '%.6g'|format(data.scales[i]) }}</td><td>{{ data.minima[i] }}</td><td>{{ '%.7g'|format(data.result.solution[i]) }}</td><td>{% if data.result.first_breach[i] is not none %}t ≈ {{ '%.7g'|format(data.result.first_breach[i]) }}{% elif data.result.ever_below_minimum[i] %}Обнаружено на сетке{% else %}Не обнаружено{% endif %}</td></tr>{% endfor %}
-</tbody></table></div>
-<h2>Внешние факторы</h2><img class="result-graph" src="{{ url_for('static',filename='solution_graphs/'+plot_name+'-q.png') }}" alt="Графики внешних факторов q1–q5">
-{% include 'variables/perturbation_description.html' %}
-<h2>Показатели в разные моменты времени</h2><p class="help-text">Обозначения L₁–L₁₅ соответствуют таблице выше. Красным показаны заданные минимумы.</p>
-{% for t in data.result.snapshot_times %}<details class="report-section"><summary>t = {{ '%.7g'|format(t) }}</summary><img class="result-graph" src="{{ url_for('static',filename='petal_graphs/'+plot_name+'/'+loop.index|string+'.png') }}" alt="Лепестковая диаграмма при t={{ t }}"></details>{% endfor %}
-<details class="report-section"><summary>Все введённые коэффициенты полиномов</summary><div class="table-responsive"><table class="table"><thead><tr><th>Функция</th>{% for k in range(data.polynomial_degree+1) %}<th>a{{ k }}</th>{% endfor %}</tr></thead><tbody>{% for f,c in data.polynomial_coefficients.items() %}<tr><th>{{ f }}</th>{% for k in range(data.polynomial_degree+1) %}<td>{{ c['A'+k|string] }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></details>
-<div class="bottom-actions"><a class="btn btn-primary" href="{{ url_for('main.index') }}">Изменить параметры</a><a class="btn btn-success" href="{{ url_for('calculation.get_generated_pdf') }}">PDF-отчёт</a><a class="btn btn-outline-secondary" href="{{ url_for('calculation.get_calculation_data') }}">Данные расчёта JSON</a><a href="{{ url_for('main.clear_session') }}">Новая модель</a></div>
+{% set breaches = data.result.ever_below_minimum|select|list|length %}
+<header class="page-heading result-heading">
+  <div><p class="eyebrow">РЕЗУЛЬТАТЫ МОДЕЛИРОВАНИЯ</p><h1>Компания в динамике</h1><p class="page-description">Прогноз на интервале t ∈ [{{ data.interval[0] }}, {{ data.interval[1] }}]</p></div>
+  <div class="actions"><a class="btn btn-outline-secondary" href="{{ url_for('main.index') }}">{{ icon('sliders',16) }}Параметры</a><a class="btn btn-primary" href="{{ url_for('calculation.get_generated_pdf') }}">{{ icon('download',16) }}PDF-отчёт</a></div>
+</header>
+<div class="result-stats">
+  <div class="stat-card"><span>Показателей в расчёте</span><strong>15</strong><small>L₁ — L₁₅</small></div>
+  <div class="stat-card {{ 'attention' if breaches else '' }}"><span>Нарушений нижних порогов</span><strong>{{ breaches }} <small>из 15 показателей</small></strong><small>За весь интервал расчёта</small></div>
+  <div class="stat-card"><span>Интервал времени</span><strong>{{ '%.4g'|format(data.interval[0]) }} → {{ '%.4g'|format(data.interval[1]) }}</strong><small>Начало и конец прогноза</small></div>
+  <div class="stat-card"><span>Степень полиномов</span><strong>{{ data.polynomial_degree }}</strong><small>98 функций взаимного влияния</small></div>
+</div>
+<section class="panel">
+  <div class="panel-header"><div><h2>Динамика показателей</h2><p>Нажмите на название показателя, чтобы скрыть или показать линию.</p></div><div class="chart-tools"><button type="button" id="chart-show-all">Все показатели</button><button type="button" id="chart-finance">Финансы L₁–L₄</button></div></div>
+  <div class="chart-shell" id="interactive-chart" hidden>
+    <div class="chart-stage"><svg id="trajectory-chart" viewBox="0 0 940 330" role="img" aria-label="Динамика 15 показателей компании"></svg></div>
+    <div class="chart-time-control"><label for="chart-time">Момент времени <output id="chart-time-value"></output></label><input id="chart-time" type="range" min="0" max="{{ data.result.times|length - 1 }}" value="0" aria-label="Момент времени на графике"></div>
+    <div class="chart-readout" id="chart-readout" aria-live="off"></div><div id="chart-legend" class="chart-legend" aria-label="Показатели на графике"></div>
+  </div>
+  <img id="chart-fallback" class="result-graph" src="{{ url_for('static',filename='solution_graphs/'+plot_name+'.png') }}" alt="Динамика всех 15 показателей компании">
+</section>
+<section class="panel">
+  <div class="panel-header"><div><h2>Показатели и пороги</h2><p>Выделены показатели, опускавшиеся ниже заданного минимума.</p></div><a class="text-button" href="{{ url_for('calculation.get_calculation_data') }}">Скачать JSON {{ icon('download',15) }}</a></div>
+  <div class="table-responsive"><table class="table result-table"><thead><tr><th>Показатель</th><th>Начальное</th><th>L*</th><th>Порог</th><th>Конечное</th><th>Первое нарушение</th></tr></thead><tbody>
+  {% for v in variables %}{% set i=loop.index0 %}<tr {% if data.result.ever_below_minimum[i] %}class="breach"{% endif %}><th><span class="symbol">{{ v.symbol }}</span>{{ v.name }}</th><td>{{ '%.6g'|format(data.initial_variable_values[v.symbol]) }}</td><td>{{ '%.6g'|format(data.scales[i]) }}</td><td>{{ data.minima[i] }}</td><td>{{ '%.7g'|format(data.result.solution[i]) }}</td><td>{% if data.result.first_breach[i] is not none %}t ≈ {{ '%.7g'|format(data.result.first_breach[i]) }}{% elif data.result.ever_below_minimum[i] %}Обнаружено на сетке{% else %}<span class="positive">—</span>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+<section class="panel"><div class="panel-header"><div><h2>Внешние факторы</h2><p>Изменение условий работы компании во времени.</p></div><span class="badge">q₁ — q₅</span></div><img class="result-graph" src="{{ url_for('static',filename='solution_graphs/'+plot_name+'-q.png') }}" alt="Графики внешних факторов q1–q5" loading="lazy"></section>
+<details class="report-section"><summary>Функции и параметры внешних факторов</summary>{% include 'variables/perturbation_description.html' %}</details>
+<div class="panel-header"><div><h2>Состояние компании во времени</h2><p>Красным на диаграммах обозначены минимальные пороги.</p></div></div>
+<div class="snapshot-grid">{% for t in data.result.snapshot_times %}<details class="report-section"><summary>t = {{ '%.7g'|format(t) }}</summary><img class="result-graph" src="{{ url_for('static',filename='petal_graphs/'+plot_name+'/'+loop.index|string+'.png') }}" alt="Лепестковая диаграмма при t={{ t }}" loading="lazy"></details>{% endfor %}</div>
+<details class="report-section"><summary>Коэффициенты полиномов</summary><div class="table-responsive"><table class="table"><thead><tr><th>Функция</th>{% for k in range(data.polynomial_degree+1) %}<th>a{{ k }}</th>{% endfor %}</tr></thead><tbody>{% for f,c in data.polynomial_coefficients.items() %}<tr><th>{{ f }}</th>{% for k in range(data.polynomial_degree+1) %}<td>{{ c['A'+k|string] }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></details>
+<div class="bottom-actions"><a class="text-button muted" href="{{ url_for('main.clear_session') }}">{{ icon('refresh',16) }}Новая модель</a><a class="btn btn-primary" href="{{ url_for('main.index') }}">Изменить параметры {{ icon('arrow',17) }}</a></div>
+<script type="application/json" id="chart-data">{{ {'times':data.result.times, 'trajectory':data.result.trajectory, 'variables':variables}|tojson }}</script>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/results-chart.js', v='3') }}" defer></script>{% endblock %}
