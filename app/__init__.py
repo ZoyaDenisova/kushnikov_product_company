@@ -11,7 +11,7 @@ from .utils.flask_inject import Inject
 # Create Flask application object and
 # set secret key for this object
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(24)
 
 # Dependency injection container
 injector = Inject(app)
