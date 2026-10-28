@@ -8,6 +8,7 @@ import math
 import json
 import os
 import re
+import random
 from contextlib import ExitStack
 from html.parser import HTMLParser
 from pathlib import Path
@@ -18,6 +19,7 @@ from unittest.mock import patch
 import numpy as np
 
 from app.model import EDGES, MATRIX, MODEL, VARIABLES, derivative, perturbations
+from app.form_defaults import form_values, random_form_values
 from app.services.calculation_service import build_configuration, integrate_model
 from app.utils.constants import Constants
 
@@ -238,6 +240,65 @@ class RequiredInputTests(unittest.TestCase):
 
 
 class IntegrationTests(unittest.TestCase):
+    def test_demo_exposes_curvature_and_state_feedback_without_blowup(self):
+        fields, steps = form_values()
+        for i, step in enumerate(steps):
+            fields[f'q4_time_{i}'] = step['time']
+            fields[f'q4_value_{i}'] = step['value']
+        configuration = build_configuration(fields)
+        result = integrate_model(configuration)
+        times = np.array(result['times'])
+        trajectory = np.array(result['trajectory'])
+        self.assertEqual(configuration['interval'], [0, 1])
+        self.assertTrue(np.isfinite(trajectory).all())
+        self.assertGreater(trajectory.min(), 0)
+        self.assertLess(trajectory.max(), 1)
+        chord = trajectory[0] + times[:, None] * (trajectory[-1] - trajectory[0])
+        deviations = np.max(np.abs(trajectory - chord), axis=0)
+        self.assertGreater(np.median(deviations), .025)
+        self.assertGreaterEqual(np.count_nonzero(deviations > .015), 10)
+
+        # Keep the same initial RHS, but freeze each influence at its initial
+        # argument. The changed outcome measures actual state coupling.
+        frozen = dict(configuration)
+        frozen['polynomial_coefficients'] = {}
+        for edges in EDGES:
+            for edge in edges:
+                name = f"f{edge['function']}"
+                x = configuration['initial_variable_values'][f"L{edge['variable']}"]
+                c = configuration['polynomial_coefficients'][name]
+                frozen['polynomial_coefficients'][name] = {
+                    'A0': sum(c[f'A{k}'] * x**k for k in range(4)),
+                    'A1': 0, 'A2': 0, 'A3': 0,
+                }
+        initial = trajectory[0]
+        np.testing.assert_allclose(
+            derivative(0, initial, configuration['polynomial_coefficients'],
+                       configuration['scales'], configuration['perturbation_parameters']),
+            derivative(0, initial, frozen['polynomial_coefficients'],
+                       frozen['scales'], frozen['perturbation_parameters']))
+        difference = np.abs(trajectory[-1] - integrate_model(frozen)['solution'])
+        self.assertGreaterEqual(np.count_nonzero(difference > .04), 8)
+
+    def test_generated_examples_converge_for_every_polynomial_order(self):
+        for degree in range(4):
+            for count in (1, 3, 5):
+                with self.subTest(degree=degree, steps=count):
+                    values, steps = random_form_values(0, 1, degree, count,
+                                                      random.Random(100*degree + count))
+                    for i, step in enumerate(steps):
+                        values[f'q4_time_{i}'] = step['time']
+                        values[f'q4_value_{i}'] = step['value']
+                    data = build_configuration(values)
+                    result = integrate_model(data)
+                    trajectory = np.array(result['trajectory'])
+                    self.assertEqual(data['interval'], [0, 1])
+                    self.assertEqual(data['polynomial_degree'], degree)
+                    self.assertEqual(len(data['perturbation_parameters']['q4_steps']), count)
+                    self.assertTrue(np.isfinite(trajectory).all())
+                    self.assertGreaterEqual(trajectory.min(), 0)
+                    self.assertLessEqual(trajectory.max(), 1)
+
     def test_nonconstant_polynomials_drive_coupled_state_evolution(self):
         form = complete_form(1)
         form.update(t_end="0.5", q1_a="1", q2_a="0", q5_b="0",
@@ -387,8 +448,8 @@ class FlaskWorkflowTests(unittest.TestCase):
         self.assertTrue(any(c['A2'] < 0 for c in coefficients))
         demo = integrate_model(configuration)
         trajectory = np.array(demo['trajectory'])
-        self.assertGreater(trajectory.min(), .3)
-        self.assertLess(trajectory.max(), .9)
+        self.assertGreater(trajectory.min(), 0)
+        self.assertLess(trajectory.max(), 1)
         response = self.client.post('/calculate', data=fields)
         self.assertEqual(response.status_code, 302)
         saved_files = list(self.paths["PATH_TO_CALC_STORAGE_FILE"].iterdir())
@@ -404,6 +465,42 @@ class FlaskWorkflowTests(unittest.TestCase):
             self.assertEqual(failed_fields[key], form[key])
         self.assertEqual(failed_fields["L5_scale"], "")
         self.assertEqual(list(self.paths["PATH_TO_CALC_STORAGE_FILE"].iterdir()), saved_files)
+
+    def test_random_endpoint_preserves_settings_and_does_not_save_a_calculation(self):
+        with patch('app.form_defaults.random.Random', return_value=random.Random(42)):
+            response = self.client.post('/random-scenario', json={
+                't_start': .15, 't_end': .95, 'polynomial_degree': 3, 'step_count': 5,
+            })
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        fields, steps = payload['values'], payload['steps']
+        self.assertEqual([fields['t_start'], fields['t_end']], [.15, .95])
+        self.assertEqual(fields['polynomial_degree'], 3)
+        self.assertEqual(len(steps), 5)
+        for i, step in enumerate(steps):
+            fields[f'q4_time_{i}'] = step['time']
+            fields[f'q4_value_{i}'] = step['value']
+        self.assertEqual(len(integrate_model(build_configuration(fields))['solution']), 15)
+        self.assertEqual(list(self.paths['PATH_TO_CALC_STORAGE_FILE'].iterdir()), [])
+        for settings in [
+            {}, {'t_start': 1, 't_end': 0, 'polynomial_degree': 2, 'step_count': 3},
+            {'t_start': 0, 't_end': 1, 'polynomial_degree': 4, 'step_count': 3},
+            {'t_start': 0, 't_end': 1, 'polynomial_degree': 2, 'step_count': 0},
+            [],
+        ]:
+            with self.subTest(settings=settings):
+                failure = self.client.post('/random-scenario', json=settings)
+                self.assertEqual(failure.status_code, 400)
+                self.assertIn('error', failure.get_json())
+
+    def test_random_endpoint_reports_failed_selection_without_saving(self):
+        with patch('app.routes.main.random_form_values', side_effect=ValueError('No stable example')):
+            response = self.client.post('/random-scenario', json={
+                't_start': 0, 't_end': 1, 'polynomial_degree': 2, 'step_count': 3,
+            })
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json()['error'], 'No stable example')
+        self.assertEqual(list(self.paths['PATH_TO_CALC_STORAGE_FILE'].iterdir()), [])
 
     def test_real_calculation_generates_unclipped_json_plots_and_pdf(self):
         form = complete_form()

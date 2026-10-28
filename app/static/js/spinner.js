@@ -67,52 +67,48 @@ if (form) {
         inputs[1].name = `q4_value_${i}`;
         inputs[1].setAttribute('aria-label', `q4 уровень ${i+1}`);
     });
-    document.getElementById('randomize-all').addEventListener('click', () => {
-        const random = (low, high, decimals = 3) =>
-            Number((low + Math.random() * (high - low)).toFixed(decimals));
-        const set = (name, value) => { form.elements.namedItem(name).value = value; };
-
-        form.querySelectorAll('#indicators input[name$="_scale"]').forEach(input => {
-            const symbol = input.name.replace('_scale', '');
-            set(symbol, random(.40, .85));
-            set(symbol + '_scale', random(5, 15, 1));
-            set(symbol + '_minimum', random(.10, .35));
-        });
-
-        for (const [factor, offset, amplitude] of [
-            ['q1', [.25, .50], [.03, .15]],
-            ['q2', [.15, .40], [.02, .10]],
-        ]) {
-            set(factor + '_a', random(...offset));
-            set(factor + '_b', random(...amplitude));
-            set(factor + '_c', random(Math.PI, 4 * Math.PI));
-            set(factor + '_d', random(0, 2 * Math.PI));
+    const randomButton = document.getElementById('randomize-all');
+    randomButton.addEventListener('click', async () => {
+        const status = document.getElementById('randomize-status');
+        const chosenDegree = degree.value;
+        const intervalStart = form.elements.namedItem('t_start').value;
+        const intervalEnd = form.elements.namedItem('t_end').value;
+        const stepCount = stepBody.querySelectorAll('tr').length;
+        randomButton.disabled = true;
+        status.textContent = 'Подбираем параметры и проверяем сходимость...';
+        try {
+            const response = await fetch(randomButton.dataset.randomUrl, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    t_start: intervalStart, t_end: intervalEnd,
+                    polynomial_degree: chosenDegree === '' ? 2 : Number(chosenDegree),
+                    step_count: stepCount,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error);
+            if (intervalStart !== form.elements.namedItem('t_start').value ||
+                intervalEnd !== form.elements.namedItem('t_end').value ||
+                chosenDegree !== degree.value || stepCount !== stepBody.querySelectorAll('tr').length) {
+                throw new Error('Настройки изменились во время подбора. Повторите генерацию.');
+            }
+            for (const [name, value] of Object.entries(data.values)) {
+                if (name !== 't_start' && name !== 't_end') form.elements.namedItem(name).value = value;
+            }
+            [...stepBody.querySelectorAll('tr')].forEach((row, i) => {
+                const fields = row.querySelectorAll('input');
+                fields[0].value = data.steps[i].time;
+                fields[1].value = data.steps[i].value;
+            });
+            form.querySelectorAll('.user-invalid').forEach(input => input.classList.remove('user-invalid'));
+            updateDegree();
+            status.textContent = 'Все разделы заполнены. Сходимость на выбранном интервале проверена.';
+        } catch (error) {
+            status.textContent = error.message || 'Не удалось сгенерировать параметры. Попробуйте ещё раз.';
+        } finally {
+            randomButton.disabled = false;
         }
-        set('q5_a', random(.05, .20));
-        set('q5_b', random(.25, .60));
-
-        // Preserve the step count and keep the fixed first transition at t=0.
-        const steps = [...stepBody.querySelectorAll('tr')];
-        const end = Number(form.elements.namedItem('t_end').value);
-        const horizon = Number.isFinite(end) ? Math.max(1, end) : 1;
-        steps.forEach((row, i) => {
-            const time = i === 0 ? 0 : Number((
-                horizon * ((i + random(-.3, .3)) / steps.length)
-            ).toPrecision(12));
-            const fields = row.querySelectorAll('input');
-            fields[0].value = time;
-            fields[1].value = random(.03, .25);
-        });
-
-        if (degree.value === '') degree.value = '2';
-        const ranges = [[.75, .95], [.10, .25], [-.025, .05], [-.01, .02]];
-        form.querySelectorAll('[data-coefficient]').forEach(input => {
-            input.value = random(...ranges[Number(input.dataset.coefficient)]);
-        });
-        form.querySelectorAll('.user-invalid').forEach(input => input.classList.remove('user-invalid'));
-        updateDegree();
-        document.getElementById('randomize-status').textContent =
-            'Показатели, внешние факторы и все 98 функций заполнены.';
     });
     document.getElementById('add-step').addEventListener('click', () => {
         const row = document.createElement('tr');
