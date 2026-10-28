@@ -1,0 +1,6 @@
+{% macro model_figures(target, equation) %}
+<div class="report-model-figures">
+  <figure><figcaption>Подграф L{{ target }}</figcaption><img src="{{ url_for('static', filename='images/graphs/L'+target|string+'-graph.png', v='report-2') }}" alt="Подграф показателя L{{ target }} из отчёта" loading="lazy"></figure>
+  <figure><figcaption>Уравнение L{{ target }}</figcaption><img src="{{ url_for('static', filename='images/graphs/L'+target|string+'-equation.png', v='report-2') }}" alt="{{ equation }}" loading="lazy"></figure>
+</div>
+{% endmacro %}
