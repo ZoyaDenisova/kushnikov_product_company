@@ -16,9 +16,10 @@
 <form action="{{ url_for('calculation.calculate') }}" method="post" id="company-form">
   <div class="form-toolbar">
     <div class="interval-fields"><span class="toolbar-label">Интервал<br>моделирования</span><label for="t_start">Начало t<input id="t_start" name="t_start" type="number" min="0" step="any" value="{{ values.t_start }}" required></label><span class="interval-arrow">→</span><label for="t_end">Конец t<input id="t_end" name="t_end" type="number" min="0" step="any" value="{{ values.t_end }}" required></label></div>
-    <div class="actions">{% if has_result %}<a class="btn btn-outline-secondary" href="{{ url_for('calculation.result_report') }}">Последний расчёт</a>{% endif %}<button id="calculationButton" type="submit" class="btn btn-primary">{{ icon('play',17) }}Рассчитать</button></div>
+    <div class="actions">{% if has_result %}<a class="btn btn-outline-secondary" href="{{ url_for('calculation.result_report') }}">Последний расчёт</a>{% endif %}<button id="randomize-all" type="button" class="btn btn-outline-secondary" title="Заполнить показатели, внешние факторы и все функции влияния">{{ icon('refresh',17) }}Случайные значения</button><button id="calculationButton" type="submit" class="btn btn-primary">{{ icon('play',17) }}Рассчитать</button></div>
     <span id="spinner" role="status">Выполняется расчёт…</span>
   </div>
+  <p id="randomize-status" class="help-text" role="status" aria-live="polite"></p>
   <div class="form-tabs" role="tablist" aria-label="Параметры сценария">
     <button type="button" id="tab-indicators" role="tab" aria-selected="true" aria-controls="indicators" data-tab="indicators"><span class="tab-number">01</span>Показатели<span class="tab-count">15</span></button>
     <button type="button" id="tab-factors" role="tab" aria-selected="false" aria-controls="factors" data-tab="factors"><span class="tab-number">02</span>Внешние факторы<span class="tab-count">5</span></button>

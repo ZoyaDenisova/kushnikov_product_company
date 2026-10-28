@@ -120,6 +120,8 @@ input.user-invalid { border-color: #c86c57; }
 .indicator-table td { padding-top: 7px; padding-bottom: 7px; }
 .symbol { display: inline-flex; align-items: center; justify-content: center; min-width: 27px; height: 24px; border-radius: 4px; background: #f2f5ec; color: #8a987a; font-size: 10px; font-weight: 500; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .help-text { color: var(--muted); font-size: 11px; line-height: 1.7; }
+#randomize-status:empty { display: none; }
+.form-toolbar { flex-wrap: wrap; }
 .bottom-actions { justify-content: space-between; margin: 18px 0 0; padding: 4px 0; gap: 16px; }
 .factor-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; padding: 0 24px 20px; }
 .factor-group { margin: 0; padding: 18px 20px; min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
