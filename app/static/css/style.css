@@ -161,6 +161,11 @@ summary:hover { background: #fafcf6; }
 .equation-details summary { padding: 3px 0 12px; font-size: 10px; color: #839276; }
 .equation { padding: 22px; border-radius: 8px; background: #f3f6ed; color: #5e704e; font-family: Cambria, Georgia, serif; font-size: 17px; line-height: 1.9; overflow-wrap: anywhere; }
 .model-graph { display: block; width: 100%; max-width: 650px; height: auto; margin: 20px auto; padding: 16px; }
+.report-model-figures { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 24px; padding: 18px; }
+.report-model-figures figure { min-width: 0; margin: 0; }
+.report-model-figures figcaption { margin-bottom: 14px; font-size: 11px; color: var(--muted); }
+.report-model-figures img { display: block; width: auto; max-width: 100%; height: auto; max-height: 540px; margin: auto; object-fit: contain; }
+@media (max-width: 700px) { .report-model-figures { grid-template-columns: 1fr; gap: 28px; padding: 12px; } }
 .positive { color: #5a8b6b; font-weight: 700; }
 .negative { color: #bc7b64; font-weight: 700; }
 .alert { display: flex; align-items: center; gap: 10px; padding: 15px 20px; margin: 20px 0; border: 1px solid #f1d4c6; background: #fff2e9; border-radius: 8px; font-size: 12px; color: #a4583c; }
