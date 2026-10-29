@@ -52,6 +52,7 @@ def build_configuration(form):
     coefficients = {}
     for i in range(1, 99):
         coefficients[f'f{i}'] = {f'A{k}': finite_number(form.get(f'f{i}_A{k}'), f'f{i}: a{k}') if k <= degree else 0 for k in range(4)}
+    degree = max((k for c in coefficients.values() for k in range(4) if c[f'A{k}'] != 0), default=0)
     return {'model_version': MODEL['version'], 'polynomial_degree': degree,
             'polynomial_coefficients': coefficients, 'initial_variable_values': initial,
             'scales': scales, 'minima': minima, 'interval': [start, end], 'perturbation_parameters': parameters}

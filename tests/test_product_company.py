@@ -150,6 +150,18 @@ class AssignmentModelTests(unittest.TestCase):
 
 
 class RequiredInputTests(unittest.TestCase):
+    def test_zero_high_coefficients_determine_degree_and_restore_as_zero(self):
+        form = complete_form(3)
+        for j in range(1, 99):
+            form[f'f{j}_A3'] = '0'
+            form[f'f{j}_A2'] = '0'
+        data = build_configuration(form)
+        self.assertEqual(data['polynomial_degree'], 1)
+        restored, _ = form_values(data)
+        for j in range(1, 99):
+            self.assertEqual(restored[f'f{j}_A3'], 0)
+            self.assertEqual(restored[f'f{j}_A2'], 0)
+
     def test_all_polynomial_orders_parse_and_inactive_terms_are_zero(self):
         for degree in range(4):
             with self.subTest(degree=degree):
@@ -455,13 +467,17 @@ class FlaskWorkflowTests(unittest.TestCase):
         page = self.client.get("/")
         self.assertEqual(page.status_code, 200)
         fields = FormFields(page.get_data(as_text=True)).values
+        markup = page.get_data(as_text=True)
+        self.assertNotIn('<select id="polynomial_degree"', markup)
+        for j in range(1, 99):
+            self.assertEqual(re.findall(r'name="f'+str(j)+r'_A([0-3])"', markup), ['3', '2', '1', '0'])
         for key in ("L1", "L15", "L1_scale", "L15_scale", "q1_a",
                     "q2_d", "q5_b", "polynomial_degree", "f1_A0", "f98_A3"):
             self.assertNotEqual(fields[key], "", key)
         for variable in VARIABLES:
             self.assertEqual(float(fields[variable["symbol"]+"_minimum"]), variable["minimum"])
         self.assertNotIn("coefficient_example", MODEL)
-        self.assertEqual(int(fields['polynomial_degree']), 2)
+        self.assertEqual(int(fields['polynomial_degree']), 3)
         configuration = build_configuration(fields)
         coefficients = configuration['polynomial_coefficients'].values()
         self.assertEqual(len({tuple(c[f'A{k}'] for k in range(3))
@@ -581,7 +597,7 @@ class FlaskWorkflowTests(unittest.TestCase):
 
         restored = FormFields(self.client.get("/").get_data(as_text=True)).values
         for key, value in form.items():
-            self.assertAlmostEqual(float(restored[key]), float(value), msg=key)
+            self.assertAlmostEqual(float(restored[key]), 3 if key == 'polynomial_degree' else float(value), msg=key)
 
     def test_recalculation_uses_changed_parameters_and_keeps_separate_results(self):
         form = complete_form()

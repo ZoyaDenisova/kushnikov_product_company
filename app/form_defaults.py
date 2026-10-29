@@ -49,8 +49,8 @@ def form_values(data=None):
             values[variable['symbol']+'_scale'] = data['scales'][i]
             values[variable['symbol']+'_minimum'] = data['minima'][i]
         for function, coefficients in data['polynomial_coefficients'].items():
-            for k in range(data['polynomial_degree']+1):
-                values[f'{function}_A{k}'] = coefficients[f'A{k}']
+            for k in range(4):
+                values[f'{function}_A{k}'] = coefficients.get(f'A{k}', 0) if k <= data['polynomial_degree'] else 0
         steps = data['perturbation_parameters']['q4_steps']
     return values, steps
 

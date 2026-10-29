@@ -50,7 +50,6 @@ if (form) {
         form.querySelector('.form-tabs').scrollIntoView({block:'start',behavior:'smooth'});
     }));
     activateTab('indicators');
-    const degree = document.getElementById('polynomial_degree');
     const progress = () => {
         let completed = 0;
         form.querySelectorAll('.coefficient-group').forEach(group => {
@@ -59,27 +58,15 @@ if (form) {
             group.querySelector('.group-progress').textContent = `${filled}/${fields.length} коэффициентов`;
             completed += filled;
         });
-        const count = degree.value === '' ? 0 : 98 * (Number(degree.value) + 1);
+        const count = 98 * 4;
         document.getElementById('coefficient-progress').textContent = `${completed}/${count} коэффициентов`;
     };
-    const updateDegree = () => {
-        const chosen = degree.value !== '';
-        document.getElementById('coefficient-groups').hidden = !chosen;
-        document.getElementById('choose-degree-note').hidden = chosen;
-        form.querySelectorAll('[data-degree]').forEach(cell => {
-            const hidden = !chosen || Number(cell.dataset.degree) > Number(degree.value);
-            cell.hidden = hidden;
-            cell.querySelectorAll('input').forEach(input => input.disabled = hidden);
-        });
-        progress();
-    };
-    degree.addEventListener('change', updateDegree);
     form.addEventListener('input', event => {
         event.target.classList.remove('user-invalid');
         fitCoefficient(event.target, event);
         progress();
     });
-    updateDegree();
+    progress();
     const stepBody = document.querySelector('#q4-table tbody');
     const updateStepBounds = () => {
         const rows = [...stepBody.querySelectorAll('tr')];
@@ -107,7 +94,6 @@ if (form) {
     const randomButton = document.getElementById('randomize-all');
     randomButton.addEventListener('click', async () => {
         const status = document.getElementById('randomize-status');
-        const chosenDegree = degree.value;
         const intervalStart = form.elements.namedItem('t_start').value;
         const intervalEnd = form.elements.namedItem('t_end').value;
         const stepCount = stepBody.querySelectorAll('tr').length;
@@ -119,7 +105,7 @@ if (form) {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     t_start: intervalStart, t_end: intervalEnd,
-                    polynomial_degree: chosenDegree === '' ? 2 : Number(chosenDegree),
+                    polynomial_degree: 3,
                     step_count: stepCount,
                 }),
             });
@@ -127,7 +113,7 @@ if (form) {
             if (!response.ok) throw new Error(data.error);
             if (intervalStart !== form.elements.namedItem('t_start').value ||
                 intervalEnd !== form.elements.namedItem('t_end').value ||
-                chosenDegree !== degree.value || stepCount !== stepBody.querySelectorAll('tr').length) {
+                stepCount !== stepBody.querySelectorAll('tr').length) {
                 throw new Error('Настройки изменились во время заполнения. Повторите генерацию.');
             }
             for (const [name, value] of Object.entries(data.values)) {
@@ -140,7 +126,7 @@ if (form) {
             updateStepBounds();
             fitCoefficients();
             form.querySelectorAll('.user-invalid').forEach(input => input.classList.remove('user-invalid'));
-            updateDegree();
+            progress();
             status.textContent = 'Все разделы заполнены случайными значениями.';
         } catch (error) {
             status.textContent = error.message || 'Не удалось сгенерировать параметры. Попробуйте ещё раз.';

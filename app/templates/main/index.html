@@ -58,10 +58,9 @@
     <div class="panel-footer"><span>5 факторов внешней среды</span><button type="button" class="text-button" data-go-tab="influences">К функциям влияния {{ icon('arrow',17) }}</button></div>
   </section>
   <section class="panel tab-panel" id="influences" role="tabpanel" aria-labelledby="tab-influences">
-    <div class="panel-header"><div><h2>Функции взаимного влияния</h2><p>Для каждого L — одно уравнение. Коэффициенты вводятся прямо в его формулу.</p></div><span class="badge" id="coefficient-progress">98 функций</span></div>
-    <div class="degree-bar"><label class="degree-control" for="polynomial_degree">Степень полиномов<select id="polynomial_degree" name="polynomial_degree" required><option value="" {% if values.polynomial_degree|string == '' %}selected{% endif %}>Выберите степень</option>{% for degree in range(4) %}<option value="{{ degree }}" {% if values.polynomial_degree|string == degree|string %}selected{% endif %}>{{ degree }} — {{ ['постоянные','линейные','квадратичные','кубические'][degree] }}</option>{% endfor %}</select></label><p class="factor-equation"><i>f</i><sub>k</sub>(<i>x</i>) = <i>a</i><sub>k,0</sub> + <i>a</i><sub>k,1</sub><i>x</i> + <i>a</i><sub>k,2</sub><i>x</i><sup>2</sup> + <i>a</i><sub>k,3</sub><i>x</i><sup>3</sup></p></div>
-    <p id="choose-degree-note" class="help-text">Выберите степень, чтобы открыть коэффициенты.</p>
-    <div id="coefficient-groups" {% if values.polynomial_degree|string == '' %}hidden{% endif %}>
+    <div class="panel-header"><div><h2>Функции взаимного влияния</h2><p>Введите коэффициенты от кубического члена к свободному. Для ненужных степеней укажите 0.</p></div><span class="badge" id="coefficient-progress">98 функций</span></div>
+    <input type="hidden" id="polynomial_degree" name="polynomial_degree" value="3">
+    <div id="coefficient-groups">
     {% for edges in model_edges %}{% set target=loop.index %}
     <details class="coefficient-group" {% if loop.first %}open{% endif %}>
       <summary><span class="symbol">L{{ target }}</span><span>{{ variables[target-1].name }}</span><small class="group-progress"></small></summary>

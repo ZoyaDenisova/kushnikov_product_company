@@ -160,6 +160,11 @@ summary:hover { background: #fafcf6; }
 /* One complete editable equation per indicator or external factor. */
 .indicator-equation, .external-equation { --formula-font-size: 18px; --coefficient-height: calc(var(--formula-font-size) * 1.6); display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 10px; color: #283b31; font-family: Cambria, Georgia, serif; font-size: var(--formula-font-size); }
 .indicator-equation { padding: 12px 0; }
+.influence-function { align-items: center; border-bottom: 1px solid var(--line); padding: 16px 0; }
+.influence-function:last-child { border-bottom: 0; }
+.influence-function > .formula-symbol { flex-shrink: 0; }
+.influence-function .formula-symbol, .influence-function .polynomial-variable { display: inline-block; line-height: 1.6; }
+.influence-function .polynomial-factor { flex: 1 1 400px; }
 .external-equation { --formula-font-size: 20px; padding: 12px 0 4px; }
 .parameter-equation { --formula-font-size: 18px; --coefficient-height: calc(var(--formula-font-size) * 1.6); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: #283b31; font-family: Cambria, Georgia, serif; font-size: var(--formula-font-size); }
 .parameter-equation .formula-symbol { display: inline-block; min-height: 0; }
