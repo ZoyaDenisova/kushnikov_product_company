@@ -3,20 +3,43 @@ from pathlib import Path
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as path_effects
 import numpy as np
 
 from app.model import VARIABLES, PERTURBATIONS, perturbations
+from app.chart_style import SERIES_STYLES, spread_labels
 from app.utils.constants import Constants
 
 
 class GraphService:
     def save_plot(self, calculation_id, y, x):
-        fig, ax = plt.subplots(figsize=(13, 7))
+        fig, ax = plt.subplots(figsize=(9.5, 9), dpi=140)
         for i, variable in enumerate(VARIABLES):
-            ax.plot(x, y[:, i], label=variable['symbol'] + ' — ' + variable['name'])
+            style = SERIES_STYLES[i]
+            ax.plot(x, y[:, i], color=style['color'], linewidth=1.9,
+                    linestyle=(0, tuple(style['dash'])) if style['dash'] else '-',
+                    label=variable['symbol'] + ' — ' + variable['name'])
+        span = max(float(np.ptp(y)), max(float(np.max(np.abs(y))), 1) * .02)
+        lower, upper = float(np.min(y)) - span*.06, float(np.max(y)) + span*.06
+        ax.set_ylim(lower, upper)
+        # Put label spacing in data units so export resolution cannot cause
+        # neighbouring labels to collide. Never modify the plotted data.
+        positions = spread_labels(y[-1].tolist(), lower+span*.015, upper-span*.015, span*.035)
+        duration = x[-1] - x[0]
+        ax.set_xlim(x[0], x[-1]+duration*.12)
+        for i, (variable, label_y) in enumerate(zip(VARIABLES, positions)):
+            color = SERIES_STYLES[i]['color']
+            ax.plot([x[-1], x[-1]+duration*.012, x[-1]+duration*.035],
+                    [y[-1,i], y[-1,i], label_y], color=color, linewidth=.8)
+            ax.plot(x[-1], y[-1,i], 'o', color=color, markersize=3)
+            label = ax.text(x[-1]+duration*.043, label_y, variable['symbol'],
+                            color=color, fontsize=9, fontweight='bold', va='center')
+            label.set_path_effects([path_effects.withStroke(linewidth=3, foreground='white')])
         ax.set(xlabel='Время t', ylabel='Нормированное значение', title='Показатели продуктовой компании')
         ax.grid(alpha=.3)
-        ax.legend(fontsize=8, loc='center left', bbox_to_anchor=(1, .5))
+        ax.legend(fontsize=7.5, loc='upper center', bbox_to_anchor=(.5, -.11), ncol=3,
+                  frameon=False, columnspacing=1.2, handlelength=2.7)
+        fig.subplots_adjust(left=.09, right=.96, top=.94, bottom=.23)
         fig.savefig(Constants.PATH_SOLUTION_GRAPHS_IMAGE + calculation_id + '.png', bbox_inches='tight')
         plt.close(fig)
 

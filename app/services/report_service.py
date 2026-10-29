@@ -52,7 +52,7 @@ def create_pdf(data, calculation_id):
         status = f't ≈ {breach:.6g}' if breach is not None else 'На сетке' if data['result']['ever_below_minimum'][i] else 'Не обнаружено'
         rows.append([v['symbol']+' '+v['name'], f"{data['initial_variable_values'][v['symbol']]:.5g}",data['scales'][i],data['minima'][i],f"{data['result']['solution'][i]:.6g}",status])
     content += [table(rows,[155,50,35,55,65,115]),PageBreak(),text('Динамика показателей','Heading1'),
-                plot(Path(Constants.PATH_SOLUTION_GRAPHS_IMAGE)/(calculation_id+'.png')),text('Внешние факторы','Heading1'),
+                plot(Path(Constants.PATH_SOLUTION_GRAPHS_IMAGE)/(calculation_id+'.png')),PageBreak(),text('Внешние факторы','Heading1'),
                 plot(Path(Constants.PATH_SOLUTION_GRAPHS_IMAGE)/(calculation_id+'-q.png'))]
     content += [PageBreak(),text('Внешние факторы и параметры','Heading1')]
     for i,name in enumerate(PERTURBATIONS,1):

@@ -20,6 +20,7 @@ import numpy as np
 
 from app.model import EDGES, MATRIX, MODEL, VARIABLES, derivative, perturbations
 from app.form_defaults import form_values, random_form_values
+from app.chart_style import spread_labels
 from app.services.calculation_service import build_configuration, integrate_model
 from app.utils.constants import Constants
 
@@ -237,6 +238,18 @@ class RequiredInputTests(unittest.TestCase):
         data = build_configuration(form)
         self.assertEqual(data["perturbation_parameters"]["q4_steps"],
                          [{"time": 0.0, "value": 0.1}])
+
+
+class ChartLabelTests(unittest.TestCase):
+    def test_clustered_and_identical_endpoints_have_separate_ordered_labels(self):
+        for targets in ([.99, .98, 1, 1, 1, .97], [.5]*15, [0, 0, .001, .002]):
+            with self.subTest(targets=targets):
+                positions = spread_labels(targets, 0, 1, .04)
+                self.assertTrue(all(0 <= p <= 1 for p in positions))
+                ordered = sorted(range(len(targets)), key=targets.__getitem__)
+                for left, right in zip(ordered, ordered[1:]):
+                    self.assertGreaterEqual(positions[right] - positions[left], .04 - 1e-12)
+        self.assertEqual(spread_labels([], 0, 1, .04), [])
 
 
 class IntegrationTests(unittest.TestCase):

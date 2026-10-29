@@ -193,16 +193,20 @@ summary:hover { background: #fafcf6; }
 .stat-card small { color: #9da392; font-size: 10px; }
 .stat-card.attention strong { color: #c17c59; }
 .chart-shell { padding: 0 22px 22px; }
-.chart-stage { position: relative; min-width: 0; }
+.chart-stage { position: relative; min-width: 0; max-width: 960px; margin: 0 auto; }
 .chart-stage svg { display: block; width: 100%; height: auto; overflow: visible; }
-.chart-stage text { fill: #a0a88f; font-family: inherit; font-size: 10px; }
+.chart-stage text { fill: #637066; font-family: inherit; font-size: 11px; }
+.chart-stage .series-label { fill: var(--series-color); font-size: 13px; font-weight: 700; stroke: white; stroke-width: 4px; paint-order: stroke; stroke-linejoin: round; }
 .chart-legend { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px 12px; border-top: 1px solid var(--line); padding-top: 17px; margin-top: 3px; }
 .chart-legend button { border: 0; padding: 5px 2px; background: none; display: flex; align-items: center; gap: 7px; font-size: 11px; color: #637453; text-align: left; line-height: 1.4; }
 .chart-legend button[aria-pressed=false] { opacity: .35; }
-.chart-legend i { display: inline-block; width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.chart-legend i { display: inline-block; width: 20px; height: 0; border-top: 3px solid; flex-shrink: 0; }
 .chart-readout { display: flex; flex-wrap: wrap; gap: 7px 18px; min-height: 37px; color: #828c76; font-size: 10px; margin: 9px 0; }
 .chart-readout strong { font-weight: 550; color: var(--ink); }
-.chart-tools { display: flex; gap: 8px; }
+.chart-panel-header { flex-wrap: wrap; }
+.chart-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.chart-tools label { display: flex; align-items: center; gap: 7px; margin: 0; max-width: 100%; min-width: 0; font-size: 12px; }
+.chart-tools select { width: 260px; max-width: 100%; min-width: 0; padding: 6px 9px; font-size: 12px; }
 .chart-tools button { border: 1px solid var(--line); border-radius: 5px; font-size: 10px; background: white; padding: 5px 9px; color: #839174; }
 .chart-tools button:hover { background: #f4f7ee; }
 .result-graph { display: block; width: 100%; height: auto; border: 0; margin: 0 auto; }

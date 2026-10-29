@@ -46,12 +46,13 @@ def product_company_context():
     from flask import request
     from app.model import VARIABLES, MATRIX, EDGES, PERTURBATIONS, MODEL, equation_text
     from app.utils.constants import Constants
+    from app.chart_style import SERIES_STYLES
     calculation_id = request.cookies.get(Constants.CALCULATION_ID_COOKIE_NAME, '')
     saved_result = calculation_id.isdigit() and os.path.isfile(
         os.path.join(Constants.PATH_TO_CALC_STORAGE_FILE, calculation_id + '.json'))
     return dict(variables=VARIABLES, matrix=MATRIX, model_edges=EDGES,
                 perturbation_names=PERTURBATIONS,
-                saved_result=saved_result,
+                saved_result=saved_result, series_styles=SERIES_STYLES,
                 equations=[equation_text(i) for i in range(15)], model=MODEL)
 
 

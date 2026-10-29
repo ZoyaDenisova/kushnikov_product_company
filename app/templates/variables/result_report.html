@@ -14,7 +14,7 @@
   <div class="stat-card"><span>Степень полиномов</span><strong>{{ data.polynomial_degree }}</strong><small>98 функций взаимного влияния</small></div>
 </div>
 <section class="panel">
-  <div class="panel-header"><div><h2>Динамика показателей</h2><p>Нажмите на название показателя, чтобы скрыть или показать линию.</p></div><div class="chart-tools"><button type="button" id="chart-show-all">Все показатели</button><button type="button" id="chart-finance">Финансы L₁–L₄</button></div></div>
+  <div class="panel-header chart-panel-header"><div><h2>Динамика показателей</h2><p>Подписи справа относятся к концам линий. Для подробного просмотра выберите один показатель; масштаб подстроится автоматически.</p></div><div class="chart-tools"><button type="button" id="chart-show-all">Все показатели</button><button type="button" id="chart-finance">Финансы L₁–L₄</button><label for="chart-series">Крупно<select id="chart-series"><option value="">Выбрать показатель</option>{% for v in variables %}<option value="{{ loop.index0 }}">{{ v.symbol }} — {{ v.name }}</option>{% endfor %}</select></label></div></div>
   <div class="chart-shell" id="interactive-chart" hidden>
     <div class="chart-stage"><svg id="trajectory-chart" viewBox="0 0 940 330" role="img" aria-label="Динамика 15 показателей компании"></svg></div>
     <div class="chart-time-control"><label for="chart-time">Момент времени <output id="chart-time-value"></output></label><input id="chart-time" type="range" min="0" max="{{ data.result.times|length - 1 }}" value="0" aria-label="Момент времени на графике"></div>
@@ -41,6 +41,6 @@
 </div>
 <details class="report-section"><summary>Коэффициенты полиномов</summary><div class="table-responsive"><table class="table"><thead><tr><th>Функция</th>{% for k in range(data.polynomial_degree+1) %}<th>a{{ k }}</th>{% endfor %}</tr></thead><tbody>{% for f,c in data.polynomial_coefficients.items() %}<tr><th>{{ f }}</th>{% for k in range(data.polynomial_degree+1) %}<td>{{ c['A'+k|string] }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></details>
 <div class="bottom-actions"><a class="text-button muted" href="{{ url_for('main.clear_session') }}">{{ icon('refresh',16) }}Новая модель</a><a class="btn btn-primary" href="{{ url_for('main.index') }}">Изменить параметры {{ icon('arrow',17) }}</a></div>
-<script type="application/json" id="chart-data">{{ {'times':data.result.times, 'trajectory':data.result.trajectory, 'variables':variables}|tojson }}</script>
+<script type="application/json" id="chart-data">{{ {'times':data.result.times, 'trajectory':data.result.trajectory, 'variables':variables, 'styles':series_styles}|tojson }}</script>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/results-chart.js', v='3') }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/results-chart.js', v='labelled-tall-1') }}" defer></script>{% endblock %}
