@@ -64,7 +64,7 @@ class GraphService:
 
     def save_perturbations(self, calculation_id, x, parameters):
         fig, ax = plt.subplots(figsize=(11, 6))
-        jumps = [.6, .8] + [step['time'] for step in parameters['q4_steps'][1:]]
+        jumps = [] if 'q1_A0' in parameters else [.6, .8] + [step['time'] for step in parameters['q4_steps'][1:]]
         extra = [np.nextafter(t, np.inf) for t in jumps if x[0] <= t < x[-1]]
         x = np.unique(np.r_[x, extra])
         values = np.array([perturbations(t, parameters) for t in x])

@@ -67,36 +67,11 @@ if (form) {
         progress();
     });
     progress();
-    const stepBody = document.querySelector('#q4-table tbody');
-    const updateStepBounds = () => {
-        const rows = [...stepBody.querySelectorAll('tr')];
-        rows.forEach((row, i) => {
-            const bound = row.querySelector('[data-next-bound]');
-            bound.hidden = i === rows.length - 1;
-            const next = rows[i+1]?.querySelector('[data-step-kind="time"]').value;
-            row.querySelector('[data-next-time]').textContent = next ? next.replace('.', ',') : '…';
-        });
-    };
-    const renumberSteps = () => {
-        stepBody.querySelectorAll('tr').forEach((row, i) => {
-            for (const kind of ['time', 'value']) {
-                const input = row.querySelector(`[data-step-kind="${kind}"]`);
-                input.name = input.id = `q4_${kind}_${i}`;
-                input.closest('label').htmlFor = input.id;
-                input.setAttribute('aria-label', `q4 ${kind === 'time' ? 'время' : 'уровень'} ${i+1}`);
-                input.closest('label').querySelector('.coefficient-index sub').textContent = kind === 'time' ? i : `4,${i}`;
-            }
-        });
-        updateStepBounds();
-    };
-    stepBody.addEventListener('input', updateStepBounds);
-    updateStepBounds();
     const randomButton = document.getElementById('randomize-all');
     randomButton.addEventListener('click', async () => {
         const status = document.getElementById('randomize-status');
         const intervalStart = form.elements.namedItem('t_start').value;
         const intervalEnd = form.elements.namedItem('t_end').value;
-        const stepCount = stepBody.querySelectorAll('tr').length;
         randomButton.disabled = true;
         status.textContent = 'Заполняем случайные значения...';
         try {
@@ -106,24 +81,17 @@ if (form) {
                 body: JSON.stringify({
                     t_start: intervalStart, t_end: intervalEnd,
                     polynomial_degree: 3,
-                    step_count: stepCount,
                 }),
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error);
             if (intervalStart !== form.elements.namedItem('t_start').value ||
-                intervalEnd !== form.elements.namedItem('t_end').value ||
-                stepCount !== stepBody.querySelectorAll('tr').length) {
+                intervalEnd !== form.elements.namedItem('t_end').value) {
                 throw new Error('Настройки изменились во время заполнения. Повторите генерацию.');
             }
             for (const [name, value] of Object.entries(data.values)) {
                 if (name !== 't_start' && name !== 't_end') form.elements.namedItem(name).value = value;
             }
-            [...stepBody.querySelectorAll('tr')].forEach((row, i) => {
-                row.querySelector('[data-step-kind="time"]').value = data.steps[i].time;
-                row.querySelector('[data-step-kind="value"]').value = data.steps[i].value;
-            });
-            updateStepBounds();
             fitCoefficients();
             form.querySelectorAll('.user-invalid').forEach(input => input.classList.remove('user-invalid'));
             progress();
@@ -132,22 +100,6 @@ if (form) {
             status.textContent = error.message || 'Не удалось сгенерировать параметры. Попробуйте ещё раз.';
         } finally {
             randomButton.disabled = false;
-        }
-    });
-    document.getElementById('add-step').addEventListener('click', () => {
-        const row = document.createElement('tr');
-        row.innerHTML = '<td><label class="coefficient-slot"><input class="coefficient-square" data-step-kind="value" type="number" step="any" required><span class="coefficient-index"><i>q</i><sub></sub></span></label></td><td class="case-condition"><span>при</span><label class="coefficient-slot"><input class="coefficient-square" data-step-kind="time" type="number" step="any" min="0" required><span class="coefficient-index"><i>t</i><sub></sub></span></label><span>≤ <i>t</i></span><span data-next-bound>&lt; <span data-next-time></span></span></td><td><button type="button" class="btn btn-quiet remove-step">Удалить</button></td>';
-        stepBody.appendChild(row);
-        renumberSteps();
-        row.querySelectorAll('input').forEach(input => fitCoefficient(input));
-        row.querySelector('input').focus();
-    });
-    stepBody.addEventListener('click', event => {
-        const button = event.target.closest('.remove-step');
-        if (button) {
-            button.closest('tr').remove();
-            renumberSteps();
-            document.getElementById('add-step').focus();
         }
     });
     // The first invalid field selects its tab before native validation focuses it.

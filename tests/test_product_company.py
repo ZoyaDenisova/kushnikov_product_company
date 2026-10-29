@@ -150,6 +150,31 @@ class AssignmentModelTests(unittest.TestCase):
 
 
 class RequiredInputTests(unittest.TestCase):
+    def test_all_five_external_polynomials_drive_the_analytical_solution(self):
+        fields = complete_form()
+        coefficients = ((0,0,0,.4), (0,0,.3,0), (0,.2,0,0), (.1,0,0,0), (0,.5,0,0))
+        for i, c in enumerate(coefficients,1):
+            for k, value in enumerate(c):
+                fields[f'q{i}_A{k}'] = str(value)
+        configuration = build_configuration(fields)
+        for t in (0,.25,.8,1):
+            np.testing.assert_allclose(perturbations(t, configuration['perturbation_parameters']),
+                                       [.4*t**3, .3*t**2, .2*t, .1, .5*t])
+        result = integrate_model(configuration)
+        for t, row in zip(result['times'], result['trajectory']):
+            self.assertAlmostEqual(row[0], .5 + .1*t**4 + .1*t**3 - .1*t**2, places=7)
+            self.assertAlmostEqual(row[1], .5 + .1*t**3 + .25*t**2 - .1*t, places=7)
+        restored, steps = form_values(configuration)
+        self.assertEqual(steps, [])
+        for i, c in enumerate(coefficients,1):
+            for k, value in enumerate(c):
+                self.assertEqual(restored[f'q{i}_A{k}'], value)
+        for key in ('q1_A0','q3_A2','q4_A3','q5_A1'):
+            invalid = dict(fields)
+            del invalid[key]
+            with self.assertRaises(ValueError):
+                build_configuration(invalid)
+
     def test_zero_high_coefficients_determine_degree_and_restore_as_zero(self):
         form = complete_form(3)
         for j in range(1, 99):
@@ -280,7 +305,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertLess(trajectory.max(), 1)
         chord = trajectory[0] + times[:, None] * (trajectory[-1] - trajectory[0])
         deviations = np.max(np.abs(trajectory - chord), axis=0)
-        self.assertGreater(np.median(deviations), .025)
+        self.assertGreater(np.median(deviations), .015)  # Smooth polynomial external factors.
         self.assertGreaterEqual(np.count_nonzero(deviations > .015), 10)
 
         # Keep the same initial RHS, but freeze each influence at its initial
@@ -326,9 +351,8 @@ class IntegrationTests(unittest.TestCase):
                     data = build_configuration(values)
                     self.assertEqual(data['interval'], [0, 1])
                     self.assertEqual(data['polynomial_degree'], degree)
-                    self.assertEqual(len(data['perturbation_parameters']['q4_steps']), count)
-                    self.assertEqual(len(set(step['time'] for step in steps)), count)
-                    self.assertEqual(steps[0]['time'], 0)
+                    self.assertEqual(len(data['perturbation_parameters']), 20)
+                    self.assertEqual(steps, [])
                     for step in steps:
                         self.assertTrue(0 <= step['time'] < 1)
                         self.assertAlmostEqual(step['time'] * 10, round(step['time'] * 10))
@@ -471,8 +495,8 @@ class FlaskWorkflowTests(unittest.TestCase):
         self.assertNotIn('<select id="polynomial_degree"', markup)
         for j in range(1, 99):
             self.assertEqual(re.findall(r'name="f'+str(j)+r'_A([0-3])"', markup), ['3', '2', '1', '0'])
-        for key in ("L1", "L15", "L1_scale", "L15_scale", "q1_a",
-                    "q2_d", "q5_b", "polynomial_degree", "f1_A0", "f98_A3"):
+        for key in ("L1", "L15", "L1_scale", "L15_scale", "q1_A0",
+                    "q2_A3", "q5_A1", "polynomial_degree", "f1_A0", "f98_A3"):
             self.assertNotEqual(fields[key], "", key)
         for variable in VARIABLES:
             self.assertEqual(float(fields[variable["symbol"]+"_minimum"]), variable["minimum"])
@@ -490,16 +514,25 @@ class FlaskWorkflowTests(unittest.TestCase):
         self.assertLess(trajectory.max(), 1)
         response = self.client.post('/calculate', data=fields)
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.get('/result').status_code, 200)
+        exported = self.client.get('/get-data').get_json()
+        self.assertEqual(len(exported['perturbation_parameters']), 20)
+        self.assertEqual(self.client.get('/get-pdf').status_code, 200)
+        reopened = FormFields(self.client.get('/').get_data(as_text=True)).values
+        for i in range(1,6):
+            for k in range(4):
+                key = f'q{i}_A{k}'
+                self.assertEqual(float(reopened[key]), float(fields[key]))
         saved_files = list(self.paths["PATH_TO_CALC_STORAGE_FILE"].iterdir())
 
-        form = complete_form()
-        form.update(L1="0.12345", q1_a="0.45678", f98_A0="0.76543",
-                    q4_time_2="0.7", q4_value_2="0.8")
+        form = dict(fields)
+        form.update(L1="0.12345", q1_A0="0.45678", f98_A0="0.76543",
+                    q3_A3="0.7", q4_A2="0.8")
         form.pop("L5_scale")
         failure = self.client.post("/calculate", data=form)
         self.assertEqual(failure.status_code, 400)
         failed_fields = FormFields(failure.get_data(as_text=True)).values
-        for key in ("L1", "q1_a", "f98_A0", "q4_time_2", "q4_value_2"):
+        for key in ("L1", "q1_A0", "f98_A0", "q3_A3", "q4_A2"):
             self.assertEqual(failed_fields[key], form[key])
         self.assertEqual(failed_fields["L5_scale"], "")
         self.assertEqual(list(self.paths["PATH_TO_CALC_STORAGE_FILE"].iterdir()), saved_files)
@@ -514,7 +547,7 @@ class FlaskWorkflowTests(unittest.TestCase):
         fields, steps = payload['values'], payload['steps']
         self.assertEqual([fields['t_start'], fields['t_end']], [.15, .95])
         self.assertEqual(fields['polynomial_degree'], 3)
-        self.assertEqual(len(steps), 5)
+        self.assertEqual(steps, [])
         for i, step in enumerate(steps):
             fields[f'q4_time_{i}'] = step['time']
             fields[f'q4_value_{i}'] = step['value']
@@ -523,7 +556,6 @@ class FlaskWorkflowTests(unittest.TestCase):
         for settings in [
             {}, {'t_start': 1, 't_end': 0, 'polynomial_degree': 2, 'step_count': 3},
             {'t_start': 0, 't_end': 1, 'polynomial_degree': 4, 'step_count': 3},
-            {'t_start': 0, 't_end': 1, 'polynomial_degree': 2, 'step_count': 0},
             [],
         ]:
             with self.subTest(settings=settings):
@@ -531,12 +563,12 @@ class FlaskWorkflowTests(unittest.TestCase):
                 self.assertEqual(failure.status_code, 400)
                 self.assertIn('error', failure.get_json())
 
-    def test_random_endpoint_reports_insufficient_step_times_without_saving(self):
+    def test_random_endpoint_supports_short_intervals_without_steps(self):
         response = self.client.post('/random-scenario', json={
             't_start': 0, 't_end': .1, 'polynomial_degree': 2, 'step_count': 3,
         })
-        self.assertEqual(response.status_code, 400)
-        self.assertIn('q₄', response.get_json()['error'])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()['steps'], [])
         self.assertEqual(list(self.paths['PATH_TO_CALC_STORAGE_FILE'].iterdir()), [])
 
     def test_real_calculation_generates_unclipped_json_plots_and_pdf(self):
@@ -597,6 +629,8 @@ class FlaskWorkflowTests(unittest.TestCase):
 
         restored = FormFields(self.client.get("/").get_data(as_text=True)).values
         for key, value in form.items():
+            if key not in restored:  # Legacy factors remain in saved reports, not the new polynomial editor.
+                continue
             self.assertAlmostEqual(float(restored[key]), 3 if key == 'polynomial_degree' else float(value), msg=key)
 
     def test_recalculation_uses_changed_parameters_and_keeps_separate_results(self):
@@ -620,7 +654,7 @@ class FlaskWorkflowTests(unittest.TestCase):
         for identity in (previous_id, new_id):
             self.assertTrue((self.paths["PATH_TO_CALC_STORAGE_FILE"] / f"{identity}.json").exists())
         fields = FormFields(self.client.get("/").get_data(as_text=True)).values
-        for key in ("t_end", "L1", "q1_a"):
+        for key in ("t_end", "L1"):
             self.assertAlmostEqual(float(fields[key]), float(changed[key]))
 
 

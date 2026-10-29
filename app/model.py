@@ -14,6 +14,7 @@ PERTURBATIONS = ['Курс валюты', 'Санкции', 'Эпидемия CO
                  'Опыт задействованных специалистов']
 Q_FIELDS = ['q1_a', 'q1_b', 'q1_c', 'q1_d',
             'q2_a', 'q2_b', 'q2_c', 'q2_d', 'q5_a', 'q5_b']
+Q_POLYNOMIAL_FIELDS = [f'q{i}_A{k}' for i in range(1, 6) for k in range(4)]
 EDGES = []
 next_function = 1
 for row in MATRIX:
@@ -29,6 +30,9 @@ assert next_function == 99
 
 def perturbations(t, parameters):
     p = parameters
+    if 'q1_A0' in p:
+        return [((p[f'q{i}_A3'] * t + p[f'q{i}_A2']) * t + p[f'q{i}_A1']) * t + p[f'q{i}_A0']
+                for i in range(1, 6)]
     sine = lambda k: p[k + '_a'] + p[k + '_b'] * math.sin(p[k + '_c'] * t + p[k + '_d'])
     q4 = p['q4_steps'][0]['value']
     for step in p['q4_steps'][1:]:

@@ -432,3 +432,5 @@ input.coefficient-square::-webkit-inner-spin-button, input.coefficient-square::-
 #doc-indicators,#doc-factors,#doc-matrix,#doc-equations { scroll-margin-top:20px; }
 @media(max-width:850px) { .about-grid { grid-template-columns:1fr; } }
 @media(max-width:600px) { .model-intro { padding:22px; } .model-intro h2 { font-size:25px; } .model-intro .equation { font-size:21px; } .document-nav { gap:6px; } .document-nav a { padding:8px 10px; font-size:10px; } .equation-list { padding:0 14px 14px; } }
+
+.external-power { display: inline-block; min-height: var(--coefficient-height); line-height: 1.6; }

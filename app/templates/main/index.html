@@ -39,22 +39,11 @@
   </section>
   <section class="panel tab-panel" id="factors" role="tabpanel" aria-labelledby="tab-factors">
     <div class="panel-header"><div><h2>Внешние факторы</h2><p>Настройте условия, в которых работает компания.</p></div><span class="badge">q₁ — q₅</span></div>
+    {% if values.legacy_external_factors %}<p class="alert alert-info">Сохранённый расчёт использует прежние внешние факторы. Для нового расчёта ниже задан пример полиномов; проверьте их коэффициенты.</p>{% endif %}
+    <p class="indicator-formula-note help-text">Все пять факторов задаются полиномами времени. Для ненужных степеней введите 0.</p>
     <div class="factor-grid">
     {% for group in q_groups %}<fieldset class="factor-group"><legend><span class="symbol">{{ group.symbol }}</span>{{ group.name }}</legend>{{ external_factor(group, values) }}</fieldset>{% endfor %}
-    <div class="factor-group"><div class="factor-title"><span class="symbol">q3</span><h3>Эпидемия COVID</h3><span class="badge">Фиксированный</span></div><p class="factor-equation piecewise">0 при t ≤ 0,6;<br>0,3 при 0,6 &lt; t ≤ 0,8;<br>0,4 при t &gt; 0,8.</p></div>
     </div>
-    <fieldset class="factor-group steps-group"><legend><span class="symbol">q4</span>Штрафы на CO₂</legend><p class="help-text">Первая ступень начинается в t = 0. Времена следующих ступеней должны возрастать.</p>
-    <div class="piecewise-editor">
-      <span class="piecewise-left"><i>q</i><sub>4</sub>(<i>t</i>) =</span><span class="cases-brace" aria-hidden="true"><svg viewBox="0 0 20 100" preserveAspectRatio="none"><path d="M18 2 Q6 2 6 18 V40 Q6 50 1 50 Q6 50 6 60 V82 Q6 98 18 98" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg></span>
-      <table id="q4-table" class="piecewise-cases" role="presentation"><tbody>
-      {% for step in steps %}{% set step_index=loop.index0 %}
-      <tr><td>{{ coefficient_slot('q4_value_'+step_index|string, step.value, 'q4 уровень '+loop.index|string, 'q', '4,'+step_index|string, kind='value') }}</td>
-        <td class="case-condition"><span>при</span>{{ coefficient_slot('q4_time_'+step_index|string, step.time, 'q4 время '+loop.index|string, 't', step_index, kind='time', readonly=loop.first) }}<span>≤ <i>t</i></span><span data-next-bound {% if loop.last %}hidden{% endif %}>&lt; <span data-next-time>{% if not loop.last %}{{ steps[loop.index].time }}{% endif %}</span></span></td>
-        <td>{% if not loop.first %}<button type="button" class="btn btn-quiet remove-step">Удалить</button>{% endif %}</td>
-      </tr>{% endfor %}
-      </tbody></table>
-    </div>
-    <button id="add-step" type="button" class="btn btn-outline-secondary">{{ icon('plus',16) }}Добавить ступень</button></fieldset>
     <div class="panel-footer"><span>5 факторов внешней среды</span><button type="button" class="text-button" data-go-tab="influences">К функциям влияния {{ icon('arrow',17) }}</button></div>
   </section>
   <section class="panel tab-panel" id="influences" role="tabpanel" aria-labelledby="tab-influences">

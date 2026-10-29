@@ -57,12 +57,18 @@ def create_pdf(data, calculation_id):
     content += [PageBreak(),text('Внешние факторы и параметры','Heading1')]
     for i,name in enumerate(PERTURBATIONS,1):
         content.append(text(f'q{i} — {name}'))
-    for line in ['q1, q2 = a + b sin(c t + d)', 'q3 = 0 при t ≤ 0,6; 0,3 при 0,6 < t ≤ 0,8; 0,4 при t > 0,8.',
-                 'q4 — пользовательская ступенчатая функция; новый уровень действует с указанного времени.', 'q5 = a √t + b.',
-                 'Все параметры q1, q2, q4, q5 введены пользователем.']:
-        content.append(text(line))
-    content.append(table([['Параметр','Значение']]+[[k,f'{v:.8g}'] for k,v in data['perturbation_parameters'].items() if k != 'q4_steps'],[200,200]))
-    content += [Spacer(1,12),text('Ступени q4','Heading2'),table([['Начало t','Уровень']]+[[s['time'],s['value']] for s in data['perturbation_parameters']['q4_steps']],[200,200])]
+    if 'q1_A0' in data['perturbation_parameters']:
+        content.append(text('qi(t) = a3 t³ + a2 t² + a1 t + a0; i = 1,...,5.'))
+        content.append(table([['Фактор', 'a3', 'a2', 'a1', 'a0']] +
+                             [[f'q{i}'] + [f"{data['perturbation_parameters'][f'q{i}_A{k}']:.8g}" for k in (3,2,1,0)]
+                              for i in range(1,6)], [80,95,95,95,95]))
+    else:
+        for line in ['q1, q2 = a + b sin(c t + d)', 'q3 = 0 при t ≤ 0,6; 0,3 при 0,6 < t ≤ 0,8; 0,4 при t > 0,8.',
+                     'q4 — пользовательская ступенчатая функция; новый уровень действует с указанного времени.', 'q5 = a √t + b.',
+                     'Все параметры q1, q2, q4, q5 введены пользователем.']:
+            content.append(text(line))
+        content.append(table([['Параметр','Значение']]+[[k,f'{v:.8g}'] for k,v in data['perturbation_parameters'].items() if k != 'q4_steps'],[200,200]))
+        content += [Spacer(1,12),text('Ступени q4','Heading2'),table([['Начало t','Уровень']]+[[s['time'],s['value']] for s in data['perturbation_parameters']['q4_steps']],[200,200])]
     content += [PageBreak(),text('Система дифференциальных уравнений','Heading1')]
     for i in range(15):
         content += [text(equation_text(i)),Spacer(1,10)]

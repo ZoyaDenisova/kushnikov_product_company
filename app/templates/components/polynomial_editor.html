@@ -61,19 +61,12 @@
 {% set factor=group.symbol %}
 <div class="external-equation" role="group" aria-label="Формула {{ factor }}">
   <span class="formula-symbol">{{ argument(factor[1:], 'q') }} =</span>
-  {% if factor in ('q1', 'q2') %}
-  {{ coefficient_slot(factor+'_a', values[factor+'_a'], factor+' смещение a') }}
-  <span class="formula-symbol">+</span>
-  {{ coefficient_slot(factor+'_b', values[factor+'_b'], factor+' амплитуда b', 'b') }}
-  <span class="formula-symbol">· sin(</span>
-  {{ coefficient_slot(factor+'_c', values[factor+'_c'], factor+' частота c', 'c') }}
-  <span class="formula-symbol">· <i>t</i> +</span>
-  {{ coefficient_slot(factor+'_d', values[factor+'_d'], factor+' фаза d', 'd') }}
-  <span class="formula-symbol">)</span>
-  {% else %}
-  {{ coefficient_slot(factor+'_a', values[factor+'_a'], factor+' темп роста a') }}
-  <span class="formula-symbol">· √<i>t</i> +</span>
-  {{ coefficient_slot(factor+'_b', values[factor+'_b'], factor+' начальное значение b', 'b') }}
-  {% endif %}
+  {% for k in (3, 2, 1, 0) %}
+  {% if not loop.first %}<span class="formula-symbol">+</span>{% endif %}
+  <span class="polynomial-term">
+    {{ coefficient_slot(factor+'_A'+k|string, values[factor+'_A'+k|string], factor+' коэффициент при степени '+k|string, caption=none) }}
+    {% if k %}<span class="external-power"><i>t</i><sup>{{ k }}</sup></span>{% endif %}
+  </span>
+  {% endfor %}
 </div>
 {% endmacro %}

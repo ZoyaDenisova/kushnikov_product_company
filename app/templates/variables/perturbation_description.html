@@ -1,8 +1,13 @@
 <div class="factor-description">
 <ul>{% for name in perturbation_names %}<li>q{{ loop.index }} — {{ name }}</li>{% endfor %}</ul>
+{% if not data or 'q1_A0' in data.perturbation_parameters %}
+<p class="factor-equation">qᵢ(t) = a₃t³ + a₂t² + a₁t + a₀, i = 1, …, 5. Коэффициенты ненужных степеней равны нулю.</p>
+{% if data %}<table class="table"><thead><tr><th>Фактор</th>{% for k in (3,2,1,0) %}<th>a{{ k }}</th>{% endfor %}</tr></thead><tbody>{% for i in range(1,6) %}<tr><th>q{{ i }}</th>{% for k in (3,2,1,0) %}<td>{{ data.perturbation_parameters['q'+i|string+'_A'+k|string] }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>{% endif %}
+{% else %}
 <p>q₁, q₂ = a + b·sin(c·t + d); q₅ = a·√t + b.</p>
 <p>q₃(t) = 0 при t ≤ 0,6; 0,3 при 0,6 &lt; t ≤ 0,8; 0,4 при t &gt; 0,8.</p>
 <p>q₄ — ступенчатая функция. В момент смены ступени действует новый уровень.</p>
 {% if data %}<details class="report-section"><summary>Параметры факторов и ступени q₄</summary><ul>{% for key,value in data.perturbation_parameters.items() %}{% if key != 'q4_steps' %}<li>{{ key }} = {{ value }}</li>{% endif %}{% endfor %}</ul><table class="table"><thead><tr><th>Начало ступени t</th><th>q₄</th></tr></thead><tbody>{% for step in data.perturbation_parameters.q4_steps %}<tr><td>{{ step.time }}</td><td>{{ step.value }}</td></tr>{% endfor %}</tbody></table></details>{% endif %}
 
+{% endif %}
 </div>

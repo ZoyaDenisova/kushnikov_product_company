@@ -6,7 +6,7 @@ import re
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from app.model import MODEL, VARIABLES, Q_FIELDS, derivative
+from app.model import MODEL, VARIABLES, Q_FIELDS, Q_POLYNOMIAL_FIELDS, derivative
 from app.utils.constants import Constants
 
 
@@ -38,17 +38,20 @@ def build_configuration(form):
     start = finite_number(form.get('t_start'), 'Начало интервала')
     end = finite_number(form.get('t_end'), 'Конец интервала')
     if not 0 <= start < end:
-        raise ValueError('Укажите интервал 0 ≤ начало < конец. Время не может быть отрицательным из-за √t в q₅.')
-    parameters = {key: finite_number(form.get(key), key) for key in Q_FIELDS}
-    indexes = sorted({int(match.group(1)) for key in form for match in [re.fullmatch(r'q4_time_(\d+)', key)] if match})
-    value_indexes = sorted({int(match.group(1)) for key in form for match in [re.fullmatch(r'q4_value_(\d+)', key)] if match})
-    if not indexes or indexes != list(range(len(indexes))) or indexes != value_indexes:
-        raise ValueError('Задайте последовательный список ступеней q₄.')
-    steps = [{'time': finite_number(form.get(f'q4_time_{i}'), f'q₄: время ступени {i+1}'),
-              'value': finite_number(form.get(f'q4_value_{i}'), f'q₄: уровень ступени {i+1}')} for i in indexes]
-    if steps[0]['time'] != 0 or any(right['time'] <= left['time'] for left, right in zip(steps, steps[1:])):
-        raise ValueError('Первая ступень q₄ начинается при t=0; времена следующих ступеней должны строго возрастать.')
-    parameters['q4_steps'] = steps
+        raise ValueError('Укажите интервал 0 ≤ начало < конец.')
+    if any(key in form for key in Q_POLYNOMIAL_FIELDS):
+        parameters = {key: finite_number(form.get(key), key) for key in Q_POLYNOMIAL_FIELDS}
+    else:
+        parameters = {key: finite_number(form.get(key), key) for key in Q_FIELDS}
+        indexes = sorted({int(match.group(1)) for key in form for match in [re.fullmatch(r'q4_time_(\d+)', key)] if match})
+        value_indexes = sorted({int(match.group(1)) for key in form for match in [re.fullmatch(r'q4_value_(\d+)', key)] if match})
+        if not indexes or indexes != list(range(len(indexes))) or indexes != value_indexes:
+            raise ValueError('Задайте последовательный список ступеней q₄.')
+        steps = [{'time': finite_number(form.get(f'q4_time_{i}'), f'q₄: время ступени {i+1}'),
+                  'value': finite_number(form.get(f'q4_value_{i}'), f'q₄: уровень ступени {i+1}')} for i in indexes]
+        if steps[0]['time'] != 0 or any(right['time'] <= left['time'] for left, right in zip(steps, steps[1:])):
+            raise ValueError('Первая ступень q₄ начинается при t=0; времена следующих ступеней должны строго возрастать.')
+        parameters['q4_steps'] = steps
     coefficients = {}
     for i in range(1, 99):
         coefficients[f'f{i}'] = {f'A{k}': finite_number(form.get(f'f{i}_A{k}'), f'f{i}: a{k}') if k <= degree else 0 for k in range(4)}
@@ -62,7 +65,7 @@ def integrate_model(data):
     start, end = data['interval']
     parameters, minima = data['perturbation_parameters'], data['minima']
     y0 = np.array([data['initial_variable_values'][v['symbol']] for v in VARIABLES], dtype=float)
-    jumps = [.6, .8] + [step['time'] for step in parameters['q4_steps'][1:]]
+    jumps = [] if 'q1_A0' in parameters else [.6, .8] + [step['time'] for step in parameters['q4_steps'][1:]]
     boundaries = sorted({start, end, *[t for t in jumps if start < t < end]})
     snapshots = np.linspace(start, end, 5)
     points = set(np.linspace(start, end, 201)) | set(boundaries) | set(snapshots)
