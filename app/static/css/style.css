@@ -112,12 +112,14 @@ input.user-invalid { border-color: #c86c57; }
 .table tbody tr:hover { background: #fcfdf8; }
 .table input { width: 100%; max-width: 145px; }
 .indicator-table { table-layout: fixed; }
-.indicator-table thead th:first-child { width: 43%; padding-left: 24px; }
-.indicator-table th:not(:first-child) { width: 19%; }
+.indicator-table thead th:first-child { width: 28%; padding-left: 24px; }
+.indicator-table thead th:nth-child(2) { width: 21%; }
+.indicator-table thead th:nth-child(3) { width: 33%; }
+.indicator-table thead th:nth-child(4) { width: 18%; }
 .indicator-table tbody th { padding-left: 24px; }
 .indicator-table th label { display: flex; align-items: center; gap: 10px; line-height: 1.4; }
-.indicator-table input { max-width: 126px; min-height: 31px; padding: 6px 10px; font-size: 12px; }
-.indicator-table td { padding-top: 7px; padding-bottom: 7px; }
+.indicator-table td { padding: 12px 10px; }
+.indicator-formula-note { margin: 0 24px 18px; }
 .symbol { display: inline-flex; align-items: center; justify-content: center; min-width: 27px; height: 24px; border-radius: 4px; background: #f2f5ec; color: #8a987a; font-size: 10px; font-weight: 500; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .help-text { color: var(--muted); font-size: 11px; line-height: 1.7; }
 #randomize-status:empty { display: none; }
@@ -159,6 +161,13 @@ summary:hover { background: #fafcf6; }
 .indicator-equation, .external-equation { --formula-font-size: 18px; --coefficient-height: calc(var(--formula-font-size) * 1.6); display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 10px; color: #283b31; font-family: Cambria, Georgia, serif; font-size: var(--formula-font-size); }
 .indicator-equation { padding: 12px 0; }
 .external-equation { --formula-font-size: 20px; padding: 12px 0 4px; }
+.parameter-equation { --formula-font-size: 18px; --coefficient-height: calc(var(--formula-font-size) * 1.6); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: #283b31; font-family: Cambria, Georgia, serif; font-size: var(--formula-font-size); }
+.parameter-equation .formula-symbol { display: inline-block; min-height: 0; }
+.parameter-equation .equation-left { gap: 6px; }
+.parameter-equation .parameter-fraction { font-size: 1em; }
+.parameter-fraction > span { padding-inline: 0; }
+.parameter-fraction .coefficient-slot { display: flex; }
+.indicator-table input.coefficient-square { max-width: none; }
 .equation-left { display: inline-flex; align-items: center; gap: 8px; min-height: var(--coefficient-height); white-space: nowrap; }
 .equation-product, .polynomial-factor, .polynomial-terms, .polynomial-term { display: inline-flex; align-items: flex-start; gap: 7px; min-width: 0; max-width: 100%; }
 .polynomial-terms { flex-wrap: wrap; row-gap: 12px; }
@@ -276,9 +285,17 @@ input.coefficient-square::-webkit-inner-spin-button, input.coefficient-square::-
   .interval-fields label { display: grid; gap: 3px; }
   .interval-fields input { width: 68px; }
   .interval-arrow { margin-top: 15px; }
-  .indicator-table th:first-child { width: 40%; }
   .table th, .table td { padding-inline: 12px; }
   .chart-legend { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:1150px) {
+  .indicator-table, .indicator-table tbody { display: block; }
+  .indicator-table thead { display: none; }
+  .indicator-table tr { display: flex; flex-wrap: wrap; gap: 14px 20px; padding: 16px 24px; border-top: 1px solid var(--line); }
+  .indicator-table tbody th { width: 100%; padding: 0; border: 0; }
+  .indicator-table td { display: block; flex: 1 0 150px; padding: 0; border: 0; }
+  .indicator-table td:nth-child(3) { flex-basis: 260px; }
+  .indicator-table td::before { content: attr(data-label); display: block; margin-bottom: 8px; font-size: 10px; color: #8d9980; }
 }
 @media(max-width:850px) {
   :root { --sidebar: 76px; }
@@ -335,13 +352,10 @@ input.coefficient-square::-webkit-inner-spin-button, input.coefficient-square::-
   .panel-header { padding: 18px 16px; }
   .panel-header h2 { font-size: 14px; }
   .panel-header p { font-size: 10px; }
-  .indicator-table, .indicator-table tbody, .indicator-table tr, .indicator-table th, .indicator-table td { display: block; width: 100% !important; }
-  .indicator-table thead { display: none; }
-  .indicator-table tr { padding: 15px 16px; border-top: 1px solid var(--line); }
-  .indicator-table tbody th { padding: 0 0 10px; border: 0; font-size: 11px; }
-  .indicator-table td { display: grid; grid-template-columns: minmax(0,1fr) 112px; align-items: center; padding: 5px 0; border: 0; gap: 12px; }
-  .indicator-table td::before { content: attr(data-label); font-size: 10px; color: #8d9980; }
-  .indicator-table input { width: 112px; max-width: none; min-height: 34px; }
+  .indicator-table tr { padding: 15px 16px; gap: 16px; }
+  .indicator-table tbody th { font-size: 11px; }
+  .indicator-table td { flex-basis: 100%; }
+  .indicator-formula-note { margin: 0 16px 16px; }
   .panel-footer { padding: 12px 16px; flex-wrap: wrap; }
   .panel-footer>span { font-size: 10px; }
   .panel-footer .text-button { font-size: 10px; }

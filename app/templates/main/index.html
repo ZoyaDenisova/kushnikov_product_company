@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from 'components/model_figures.html' import model_figures %}
-{% from 'components/polynomial_editor.html' import equation_editor, external_factor, coefficient_slot %}
+{% from 'components/polynomial_editor.html' import equation_editor, external_factor, coefficient_slot, indicator_parameters %}
 {% block title %}Моделирование{% endblock %}
 {% block breadcrumb %}Моделирование{% endblock %}
 {% block body %}
@@ -28,12 +28,11 @@
   </div>
   <section class="panel tab-panel" id="indicators" role="tabpanel" aria-labelledby="tab-indicators">
     <div class="panel-header"><div><h2>Исходные показатели</h2><p>Начальные значения, нормировка и нижние пороги.</p></div><span class="badge">L₁ — L₁₅</span></div>
-    <div class="table-responsive"><table class="table indicator-table"><thead><tr><th>Показатель</th><th>Начальное L(t₀)</th><th>Нормировка L*</th><th>Минимальный порог</th></tr></thead><tbody>
+    <p class="indicator-formula-note help-text"><i>B</i><sub>i</sub>(<i>t</i>) — влияния, увеличивающие показатель; <i>D</i><sub>i</sub>(<i>t</i>) — уменьшающие. Нижний порог используется для проверки результата.</p>
+    <div class="table-responsive"><table class="table indicator-table"><thead><tr><th>Показатель</th><th>Начальное условие</th><th>Нормировка L* в уравнении</th><th>Нижний порог</th></tr></thead><tbody>
     {% for v in variables %}
     <tr><th><label for="{{ v.symbol }}"><span class="symbol">{{ v.symbol }}</span><span>{{ v.name }}</span></label></th>
-      <td data-label="Начальное L(t₀)"><input id="{{ v.symbol }}" name="{{ v.symbol }}" aria-label="{{ v.symbol }} начальное значение" type="number" step="any" value="{{ values[v.symbol] }}" required></td>
-      <td data-label="Нормировка L*"><input name="{{ v.symbol }}_scale" aria-label="{{ v.symbol }} нормировка" type="number" step="any" min="0" value="{{ values[v.symbol+'_scale'] }}" required></td>
-      <td data-label="Минимальный порог"><input name="{{ v.symbol }}_minimum" aria-label="{{ v.symbol }} минимум" type="number" step="any" min="0" max="1" value="{{ values[v.symbol+'_minimum'] }}" title="Исходный порог: {{ v.minimum }}" required></td>
+      {{ indicator_parameters(v, loop.index, values) }}
     </tr>{% endfor %}
     </tbody></table></div>
     <div class="panel-footer"><span>{{ icon('info',16) }}Все значения можно изменить</span><button type="button" class="text-button" data-go-tab="factors">К внешним факторам {{ icon('arrow',17) }}</button></div>

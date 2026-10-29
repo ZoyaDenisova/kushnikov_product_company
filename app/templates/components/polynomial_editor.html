@@ -2,12 +2,34 @@
 <span class="math-argument"><i>{{ letter }}</i><sub>{{ source }}</sub>(<i>t</i>)</span>
 {%- endmacro %}
 
-{% macro coefficient_slot(key, value, label, caption='a', index=none, coefficient=none, kind=none, readonly=false) -%}
+{% macro coefficient_slot(key, value, label, caption='a', index=none, coefficient=none, kind=none, readonly=false, minimum=none, maximum=none) -%}
 <label class="coefficient-slot" for="{{ key }}">
-  <input id="{{ key }}" class="coefficient-square" type="number" step="any" name="{{ key }}" aria-label="{{ label }}" title="{{ label }}: {{ value }}" value="{{ value if value is string else '%.15g'|format(value) }}" {% if coefficient is not none %}data-coefficient="{{ coefficient }}"{% endif %} {% if kind %}data-step-kind="{{ kind }}"{% endif %} {% if kind == 'time' %}min="0"{% endif %} {% if readonly %}readonly{% endif %} required>
-  <span class="coefficient-index" aria-hidden="true"><i>{{ caption }}</i>{% if index is not none %}<sub>{{ index }}</sub>{% endif %}</span>
+  <input id="{{ key }}" class="coefficient-square" type="number" step="any" name="{{ key }}" aria-label="{{ label }}" title="{{ label }}: {{ value }}" value="{{ value if value is string else '%.15g'|format(value) }}" {% if coefficient is not none %}data-coefficient="{{ coefficient }}"{% endif %} {% if kind %}data-step-kind="{{ kind }}"{% endif %} {% if kind == 'time' %}min="0"{% elif minimum is not none %}min="{{ minimum }}"{% endif %} {% if maximum is not none %}max="{{ maximum }}"{% endif %} {% if readonly %}readonly{% endif %} required>
+  {% if caption is not none %}<span class="coefficient-index" aria-hidden="true"><i>{{ caption }}</i>{% if index is not none %}<sub>{{ index }}</sub>{% endif %}</span>{% endif %}
 </label>
 {%- endmacro %}
+
+{% macro indicator_parameters(variable, target, values) %}
+<td data-label="Начальное условие">
+  <div class="parameter-equation" role="group" aria-label="Начальное условие {{ variable.symbol }}">
+    <span class="formula-symbol"><i>L</i><sub>{{ target }}</sub>(<i>t</i><sub>0</sub>) =</span>
+    {{ coefficient_slot(variable.symbol, values[variable.symbol], variable.symbol+' начальное значение', caption=none) }}
+  </div>
+</td>
+<td data-label="Нормировка L*">
+  <div class="parameter-equation" role="group" aria-label="Нормировка в уравнении {{ variable.symbol }}">
+    <span class="equation-left"><span class="math-fraction"><span>d{{ argument(target) }}</span><span>d<i>t</i></span></span><span>=</span></span>
+    <span class="math-fraction parameter-fraction"><span>1</span><span>{{ coefficient_slot(variable.symbol+'_scale', values[variable.symbol+'_scale'], variable.symbol+' нормировка', caption=none, minimum=0) }}</span></span>
+    <span class="formula-symbol">[<i>B</i><sub>{{ target }}</sub>(<i>t</i>) − <i>D</i><sub>{{ target }}</sub>(<i>t</i>)]</span>
+  </div>
+</td>
+<td data-label="Нижний порог">
+  <div class="parameter-equation" role="group" aria-label="Нижняя граница {{ variable.symbol }}">
+    <span class="formula-symbol">{{ argument(target) }} ≥</span>
+    {{ coefficient_slot(variable.symbol+'_minimum', values[variable.symbol+'_minimum'], variable.symbol+' минимум', caption=none, minimum=0, maximum=1) }}
+  </div>
+</td>
+{% endmacro %}
 
 {% macro polynomial_factor(edge, values) -%}
 {% set function='f'+edge.function|string %}
