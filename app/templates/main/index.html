@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from 'components/model_figures.html' import model_figures %}
+{% from 'components/polynomial_editor.html' import equation_editor, external_factor, coefficient_slot %}
 {% block title %}Моделирование{% endblock %}
 {% block breadcrumb %}Моделирование{% endblock %}
 {% block body %}
@@ -40,19 +41,37 @@
   <section class="panel tab-panel" id="factors" role="tabpanel" aria-labelledby="tab-factors">
     <div class="panel-header"><div><h2>Внешние факторы</h2><p>Настройте условия, в которых работает компания.</p></div><span class="badge">q₁ — q₅</span></div>
     <div class="factor-grid">
-    {% for group in q_groups %}<fieldset class="factor-group"><legend><span class="symbol">{{ group.symbol }}</span>{{ group.name }}</legend><p class="factor-equation">{{ group.formula }}</p><div class="factor-fields">{% for suffix,label in group.fields %}{% set key=group.symbol+'_'+suffix %}<label for="{{ key }}">{{ label }}<input id="{{ key }}" name="{{ key }}" type="number" step="any" value="{{ values[key] }}" required></label>{% endfor %}</div></fieldset>{% endfor %}
+    {% for group in q_groups %}<fieldset class="factor-group"><legend><span class="symbol">{{ group.symbol }}</span>{{ group.name }}</legend>{{ external_factor(group, values) }}</fieldset>{% endfor %}
     <div class="factor-group"><div class="factor-title"><span class="symbol">q3</span><h3>Эпидемия COVID</h3><span class="badge">Фиксированный</span></div><p class="factor-equation piecewise">0 при t ≤ 0,6;<br>0,3 при 0,6 &lt; t ≤ 0,8;<br>0,4 при t &gt; 0,8.</p></div>
     </div>
     <fieldset class="factor-group steps-group"><legend><span class="symbol">q4</span>Штрафы на CO₂</legend><p class="help-text">Первая ступень начинается в t = 0. Времена следующих ступеней должны возрастать.</p>
-    <div class="table-responsive"><table class="table" id="q4-table"><thead><tr><th>Начало ступени t</th><th>Значение q₄</th><th></th></tr></thead><tbody>{% for step in steps %}<tr><td><input type="number" step="any" min="0" name="q4_time_{{ loop.index0 }}" aria-label="q4 время {{ loop.index }}" value="{{ step.time }}" required {% if loop.first %}readonly{% endif %}></td><td><input type="number" step="any" name="q4_value_{{ loop.index0 }}" aria-label="q4 уровень {{ loop.index }}" value="{{ step.value }}" required></td><td>{% if not loop.first %}<button type="button" class="btn btn-quiet remove-step">Удалить</button>{% endif %}</td></tr>{% endfor %}</tbody></table></div><button id="add-step" type="button" class="btn btn-outline-secondary">{{ icon('plus',16) }}Добавить ступень</button></fieldset>
+    <div class="piecewise-editor">
+      <span class="piecewise-left"><i>q</i><sub>4</sub>(<i>t</i>) =</span><span class="cases-brace" aria-hidden="true"><svg viewBox="0 0 20 100" preserveAspectRatio="none"><path d="M18 2 Q6 2 6 18 V40 Q6 50 1 50 Q6 50 6 60 V82 Q6 98 18 98" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg></span>
+      <table id="q4-table" class="piecewise-cases" role="presentation"><tbody>
+      {% for step in steps %}{% set step_index=loop.index0 %}
+      <tr><td>{{ coefficient_slot('q4_value_'+step_index|string, step.value, 'q4 уровень '+loop.index|string, 'q', '4,'+step_index|string, kind='value') }}</td>
+        <td class="case-condition"><span>при</span>{{ coefficient_slot('q4_time_'+step_index|string, step.time, 'q4 время '+loop.index|string, 't', step_index, kind='time', readonly=loop.first) }}<span>≤ <i>t</i></span><span data-next-bound {% if loop.last %}hidden{% endif %}>&lt; <span data-next-time>{% if not loop.last %}{{ steps[loop.index].time }}{% endif %}</span></span></td>
+        <td>{% if not loop.first %}<button type="button" class="btn btn-quiet remove-step">Удалить</button>{% endif %}</td>
+      </tr>{% endfor %}
+      </tbody></table>
+    </div>
+    <button id="add-step" type="button" class="btn btn-outline-secondary">{{ icon('plus',16) }}Добавить ступень</button></fieldset>
     <div class="panel-footer"><span>5 факторов внешней среды</span><button type="button" class="text-button" data-go-tab="influences">К функциям влияния {{ icon('arrow',17) }}</button></div>
   </section>
   <section class="panel tab-panel" id="influences" role="tabpanel" aria-labelledby="tab-influences">
-    <div class="panel-header"><div><h2>Функции взаимного влияния</h2><p>Коэффициенты связей между показателями компании.</p></div><span class="badge" id="coefficient-progress">98 функций</span></div>
-    <div class="degree-bar"><label class="degree-control" for="polynomial_degree">Степень полиномов<select id="polynomial_degree" name="polynomial_degree" required><option value="" {% if values.polynomial_degree|string == '' %}selected{% endif %}>Выберите степень</option>{% for degree in range(4) %}<option value="{{ degree }}" {% if values.polynomial_degree|string == degree|string %}selected{% endif %}>{{ degree }} — {{ ['постоянные','линейные','квадратичные','кубические'][degree] }}</option>{% endfor %}</select></label><p class="factor-equation">f(x) = a₀ + a₁x + a₂x² + a₃x³</p></div>
+    <div class="panel-header"><div><h2>Функции взаимного влияния</h2><p>Для каждого L — одно уравнение. Коэффициенты вводятся прямо в его формулу.</p></div><span class="badge" id="coefficient-progress">98 функций</span></div>
+    <div class="degree-bar"><label class="degree-control" for="polynomial_degree">Степень полиномов<select id="polynomial_degree" name="polynomial_degree" required><option value="" {% if values.polynomial_degree|string == '' %}selected{% endif %}>Выберите степень</option>{% for degree in range(4) %}<option value="{{ degree }}" {% if values.polynomial_degree|string == degree|string %}selected{% endif %}>{{ degree }} — {{ ['постоянные','линейные','квадратичные','кубические'][degree] }}</option>{% endfor %}</select></label><p class="factor-equation"><i>f</i><sub>k</sub>(<i>x</i>) = <i>a</i><sub>k,0</sub> + <i>a</i><sub>k,1</sub><i>x</i> + <i>a</i><sub>k,2</sub><i>x</i><sup>2</sup> + <i>a</i><sub>k,3</sub><i>x</i><sup>3</sup></p></div>
     <p id="choose-degree-note" class="help-text">Выберите степень, чтобы открыть коэффициенты.</p>
     <div id="coefficient-groups" {% if values.polynomial_degree|string == '' %}hidden{% endif %}>
-    {% for edges in model_edges %}{% set target=loop.index %}<details class="coefficient-group"><summary><span class="symbol">L{{ target }}</span><span>{{ variables[target-1].name }}</span><small class="group-progress"></small></summary><div class="coefficient-body"><details class="equation-details"><summary>Уравнение и подграф</summary>{{ model_figures(target, equations[target-1]) }}</details><div class="table-responsive"><table class="table"><thead><tr><th>Функция</th><th>Источник → показатель</th>{% for k in range(4) %}<th data-degree="{{ k }}">a{{ k }}</th>{% endfor %}</tr></thead><tbody>{% for edge in edges %}{% set function='f'+edge.function|string %}<tr><th>{{ function }}(L{{ edge.variable }})</th><td>L{{ edge.variable }} → L{{ target }} <span class="{{ 'positive' if edge.sign == 1 else 'negative' }}">{{ '+' if edge.sign == 1 else '−' }}</span></td>{% for k in range(4) %}{% set key=function+'_A'+k|string %}<td data-degree="{{ k }}"><input type="number" step="any" name="{{ key }}" aria-label="{{ function }} a{{ k }}" value="{{ values[key] }}" data-coefficient="{{ k }}" required></td>{% endfor %}</tr>{% endfor %}</tbody></table></div></div></details>{% endfor %}
+    {% for edges in model_edges %}{% set target=loop.index %}
+    <details class="coefficient-group" {% if loop.first %}open{% endif %}>
+      <summary><span class="symbol">L{{ target }}</span><span>{{ variables[target-1].name }}</span><small class="group-progress"></small></summary>
+      <div class="coefficient-body">
+        <details class="equation-details"><summary>Уравнение и подграф</summary>{{ model_figures(target, equations[target-1]) }}</details>
+        {{ equation_editor(target, edges, matrix[target-1], values) }}
+      </div>
+    </details>
+    {% endfor %}
     </div>
   </section>
   <div class="bottom-actions"><a class="text-button muted" href="{{ url_for('main.clear_session') }}">{{ icon('refresh',16) }}Сбросить параметры</a><button type="submit" class="btn btn-primary">Рассчитать показатели {{ icon('arrow',17) }}</button></div>

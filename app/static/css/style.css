@@ -123,7 +123,7 @@ input.user-invalid { border-color: #c86c57; }
 #randomize-status:empty { display: none; }
 .form-toolbar { flex-wrap: wrap; }
 .bottom-actions { justify-content: space-between; margin: 18px 0 0; padding: 4px 0; gap: 16px; }
-.factor-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; padding: 0 24px 20px; }
+.factor-grid { display: grid; grid-template-columns: 1fr; gap: 16px; padding: 0 24px 20px; }
 .factor-group { margin: 0; padding: 18px 20px; min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .factor-group legend { padding: 0 7px; font-size: 12px; font-weight: 600; }
 .factor-group legend .symbol { margin-right: 8px; }
@@ -137,7 +137,6 @@ input.user-invalid { border-color: #c86c57; }
 .steps-group { margin: 0 24px 24px; }
 #q4-table { table-layout: fixed; margin: 12px 0; }
 #q4-table th:last-child { width: 95px; }
-#q4-table input { max-width: 190px; }
 #q4-table td, #q4-table th { padding: 10px; }
 .degree-bar { margin: 0 24px 22px; display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 18px; background: #f6f8f1; border-radius: 8px; }
 .degree-control { display: grid; gap: 8px; color: #819173; font-size: 10px; }
@@ -156,9 +155,45 @@ summary:hover { background: #fafcf6; }
 .group-progress { margin-left: auto; font-size: 10px; color: #9aa58e; font-weight: 400; }
 .coefficient-group[open]>summary { border-bottom: 1px solid var(--line); background: #f8faf4; }
 .coefficient-body { padding: 16px; }
-.coefficient-body .table { min-width: 540px; }
-.coefficient-body .table td, .coefficient-body .table th { padding: 10px; }
-.coefficient-body .table input { min-width: 78px; }
+/* One complete editable equation per indicator or external factor. */
+.indicator-equation, .external-equation { --formula-font-size: 18px; --coefficient-height: calc(var(--formula-font-size) * 1.6); display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 10px; color: #283b31; font-family: Cambria, Georgia, serif; font-size: var(--formula-font-size); }
+.indicator-equation { padding: 12px 0; }
+.external-equation { --formula-font-size: 20px; padding: 12px 0 4px; }
+.equation-left { display: inline-flex; align-items: center; gap: 8px; min-height: var(--coefficient-height); white-space: nowrap; }
+.equation-product, .polynomial-factor, .polynomial-terms, .polynomial-term { display: inline-flex; align-items: flex-start; gap: 7px; min-width: 0; max-width: 100%; }
+.polynomial-terms { flex-wrap: wrap; row-gap: 12px; }
+.equation-factor { white-space: nowrap; }
+.formula-symbol, .polynomial-variable, .formula-bracket { display: inline-flex; align-items: center; min-height: var(--coefficient-height); line-height: 1.2; white-space: nowrap; }
+.polynomial-factor > .formula-bracket { align-self: flex-start; }
+.formula-bracket { font-size: 1.35em; line-height: 1; }
+.polynomial-variable sub, .polynomial-variable sup { font-size: .7em; }
+.polynomial-term[hidden] { display: none; }
+.math-fraction { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; font-size: .9em; line-height: 1; }
+.math-fraction > span { padding: 2px 4px; }
+.math-fraction > span:first-child { border-bottom: 1px solid currentColor; }
+.coefficient-slot { display: inline-flex; flex-direction: column; align-items: center; gap: 5px; margin: 0; flex-shrink: 0; }
+input.coefficient-square { box-sizing: border-box; width: calc(3ch + 14px); height: var(--coefficient-height); min-height: 0; min-width: var(--coefficient-height); padding: 1px 6px; border: 1px solid #a6b59f; border-radius: 0; background: white; font: inherit; line-height: 1.2; font-variant-numeric: tabular-nums; text-align: center; appearance: textfield; -moz-appearance: textfield; }
+input.coefficient-square::-webkit-inner-spin-button, input.coefficient-square::-webkit-outer-spin-button { appearance: none; -webkit-appearance: none; margin: 0; }
+.coefficient-index { color: #7b8775; font-size: 11px; line-height: 1.2; }
+.piecewise-editor { --formula-font-size: 18px; --coefficient-height: calc(var(--formula-font-size) * 1.6); display: flex; align-items: flex-start; gap: 12px; max-width: 100%; margin: 14px 0 20px; }
+.piecewise-left { min-height: var(--coefficient-height); display: inline-flex; align-items: center; white-space: nowrap; font-family: Cambria, Georgia, serif; font-size: var(--formula-font-size); }
+.cases-brace { position: relative; width: 18px; align-self: stretch; flex-shrink: 0; }
+.cases-brace svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+#q4-table.piecewise-cases { display: block; width: auto; max-width: 100%; margin: 0; font-family: Cambria, Georgia, serif; font-size: 18px; }
+.piecewise-cases tbody { display: block; }
+.piecewise-cases tr { display: flex; align-items: flex-start; gap: 14px; padding-bottom: 12px; }
+#q4-table.piecewise-cases td { display: inline-flex; align-items: center; padding: 0; min-height: var(--coefficient-height); }
+#q4-table .case-condition { display: flex; flex-wrap: wrap; gap: 10px; }
+.piecewise-cases [data-next-bound] { white-space: nowrap; }
+@media (max-width: 600px) {
+  .indicator-equation { --formula-font-size: 16px; }
+  .polynomial-terms, .polynomial-term { gap: 5px; }
+  .external-equation { --formula-font-size: 18px; gap: 10px 7px; }
+  .piecewise-editor { flex-wrap: wrap; gap: 8px; }
+  .piecewise-left { width: 100%; min-height: 32px; }
+  .piecewise-cases tr { gap: 8px; flex-wrap: wrap; }
+  #q4-table.piecewise-cases { flex: 1; min-width: 0; }
+}
 .equation-details { margin-bottom: 15px; border-bottom: 1px solid var(--line); }
 .equation-details summary { padding: 3px 0 12px; font-size: 10px; color: #839276; }
 .equation { padding: 22px; border-radius: 8px; background: #f3f6ed; color: #5e704e; font-family: Cambria, Georgia, serif; font-size: 17px; line-height: 1.9; overflow-wrap: anywhere; }
@@ -315,7 +350,6 @@ summary:hover { background: #fafcf6; }
   .steps-group { margin: 0 16px 16px; }
   #q4-table th:last-child { width: 65px; }
   #q4-table td, #q4-table th { padding: 8px 3px; font-size: 9px; }
-  #q4-table input { min-width: 0; padding: 7px; }
   .remove-step { padding: 5px; font-size: 10px; }
   .degree-bar { display: block; margin: 0 16px 16px; padding: 14px; }
   .degree-control select { width: 100%; min-width: 0; }

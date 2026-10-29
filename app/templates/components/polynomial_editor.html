@@ -1,0 +1,72 @@
+{% macro argument(source, letter='L') -%}
+<span class="math-argument"><i>{{ letter }}</i><sub>{{ source }}</sub>(<i>t</i>)</span>
+{%- endmacro %}
+
+{% macro coefficient_slot(key, value, label, caption='a', index=none, coefficient=none, kind=none, readonly=false) -%}
+<label class="coefficient-slot" for="{{ key }}">
+  <input id="{{ key }}" class="coefficient-square" type="number" step="any" name="{{ key }}" aria-label="{{ label }}" title="{{ label }}: {{ value }}" value="{{ value if value is string else '%.15g'|format(value) }}" {% if coefficient is not none %}data-coefficient="{{ coefficient }}"{% endif %} {% if kind %}data-step-kind="{{ kind }}"{% endif %} {% if kind == 'time' %}min="0"{% endif %} {% if readonly %}readonly{% endif %} required>
+  <span class="coefficient-index" aria-hidden="true"><i>{{ caption }}</i>{% if index is not none %}<sub>{{ index }}</sub>{% endif %}</span>
+</label>
+{%- endmacro %}
+
+{% macro polynomial_factor(edge, values) -%}
+{% set function='f'+edge.function|string %}
+<span class="polynomial-factor" data-function="{{ function }}" data-source="L{{ edge.variable }}" title="{{ function }}(L{{ edge.variable }}(t))">
+  <span class="formula-bracket">(</span>
+  <span class="polynomial-terms">
+  {% for k in range(4) %}{% set key=function+'_A'+k|string %}
+    <span class="polynomial-term" data-degree="{{ k }}">
+      {% if k %}<span class="formula-symbol">+</span>{% endif %}
+      {{ coefficient_slot(key, values[key], function+' a'+k|string, index=edge.function|string+','+k|string, coefficient=k) }}
+      {% if k %}<span class="formula-symbol">·</span><span class="polynomial-variable">{{ argument(edge.variable) }}{% if k > 1 %}<sup>{{ k }}</sup>{% endif %}</span>{% endif %}
+    </span>
+  {% endfor %}
+  </span>
+  <span class="formula-bracket">)</span>
+</span>
+{%- endmacro %}
+
+{% macro equation_editor(target, edges, row, values) %}
+<div class="indicator-equation" role="group" aria-label="Уравнение L{{ target }}" data-equation="L{{ target }}">
+  <span class="equation-left">
+    <span class="math-fraction"><span>d{{ argument(target) }}</span><span>d<i>t</i></span></span>
+    <span>=</span>
+    <span class="math-fraction"><span>1</span><span><i>L</i><sub>{{ target }}</sub><sup>*</sup></span></span>
+    <span class="formula-bracket">[</span>
+  </span>
+  {% for edge in edges if edge.sign == 1 %}
+  <span class="equation-product">{% if not loop.first %}<span class="formula-symbol">·</span>{% endif %}{{ polynomial_factor(edge, values) }}</span>
+  {% endfor %}
+  {% if 1 in row[15:] %}
+  <span class="equation-factor formula-symbol">· ({% for j in range(5) if row[15+j] == 1 %}{% if not loop.first %} + {% endif %}{{ argument(j+1, 'q') }}{% endfor %})</span>
+  {% endif %}
+  {% for edge in edges if edge.sign == -1 %}
+  <span class="equation-product"><span class="formula-symbol">{{ '−' if loop.first else '·' }}</span>{{ polynomial_factor(edge, values) }}</span>
+  {% endfor %}
+  {% if -1 in row[15:] %}
+  <span class="equation-factor formula-symbol">− ({% for j in range(5) if row[15+j] == -1 %}{% if not loop.first %} + {% endif %}{{ argument(j+1, 'q') }}{% endfor %})</span>
+  {% endif %}
+  <span class="formula-symbol formula-bracket">]</span>
+</div>
+{% endmacro %}
+
+{% macro external_factor(group, values) %}
+{% set factor=group.symbol %}
+<div class="external-equation" role="group" aria-label="Формула {{ factor }}">
+  <span class="formula-symbol">{{ argument(factor[1:], 'q') }} =</span>
+  {% if factor in ('q1', 'q2') %}
+  {{ coefficient_slot(factor+'_a', values[factor+'_a'], factor+' смещение a') }}
+  <span class="formula-symbol">+</span>
+  {{ coefficient_slot(factor+'_b', values[factor+'_b'], factor+' амплитуда b', 'b') }}
+  <span class="formula-symbol">· sin(</span>
+  {{ coefficient_slot(factor+'_c', values[factor+'_c'], factor+' частота c', 'c') }}
+  <span class="formula-symbol">· <i>t</i> +</span>
+  {{ coefficient_slot(factor+'_d', values[factor+'_d'], factor+' фаза d', 'd') }}
+  <span class="formula-symbol">)</span>
+  {% else %}
+  {{ coefficient_slot(factor+'_a', values[factor+'_a'], factor+' темп роста a') }}
+  <span class="formula-symbol">· √<i>t</i> +</span>
+  {{ coefficient_slot(factor+'_b', values[factor+'_b'], factor+' начальное значение b', 'b') }}
+  {% endif %}
+</div>
+{% endmacro %}
