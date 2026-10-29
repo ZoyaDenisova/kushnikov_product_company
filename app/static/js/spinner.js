@@ -112,7 +112,7 @@ if (form) {
         const intervalEnd = form.elements.namedItem('t_end').value;
         const stepCount = stepBody.querySelectorAll('tr').length;
         randomButton.disabled = true;
-        status.textContent = 'Подбираем параметры и проверяем сходимость...';
+        status.textContent = 'Заполняем случайные значения...';
         try {
             const response = await fetch(randomButton.dataset.randomUrl, {
                 method: 'POST',
@@ -128,7 +128,7 @@ if (form) {
             if (intervalStart !== form.elements.namedItem('t_start').value ||
                 intervalEnd !== form.elements.namedItem('t_end').value ||
                 chosenDegree !== degree.value || stepCount !== stepBody.querySelectorAll('tr').length) {
-                throw new Error('Настройки изменились во время подбора. Повторите генерацию.');
+                throw new Error('Настройки изменились во время заполнения. Повторите генерацию.');
             }
             for (const [name, value] of Object.entries(data.values)) {
                 if (name !== 't_start' && name !== 't_end') form.elements.namedItem(name).value = value;
@@ -141,7 +141,7 @@ if (form) {
             fitCoefficients();
             form.querySelectorAll('.user-invalid').forEach(input => input.classList.remove('user-invalid'));
             updateDegree();
-            status.textContent = 'Все разделы заполнены. Сходимость на выбранном интервале проверена.';
+            status.textContent = 'Все разделы заполнены случайными значениями.';
         } catch (error) {
             status.textContent = error.message || 'Не удалось сгенерировать параметры. Попробуйте ещё раз.';
         } finally {

@@ -293,24 +293,33 @@ class IntegrationTests(unittest.TestCase):
         difference = np.abs(trajectory[-1] - integrate_model(frozen)['solution'])
         self.assertGreaterEqual(np.count_nonzero(difference > .04), 8)
 
-    def test_generated_examples_converge_for_every_polynomial_order(self):
+    def test_random_parameters_respect_ranges_without_running_solver(self):
         for degree in range(4):
             for count in (1, 3, 5):
                 with self.subTest(degree=degree, steps=count):
-                    values, steps = random_form_values(0, 1, degree, count,
-                                                      random.Random(100*degree + count))
+                    with patch('app.services.calculation_service.integrate_model',
+                               side_effect=AssertionError('Random filling must not solve the system')):
+                        values, steps = random_form_values(0, 1, degree, count,
+                                                          random.Random(100*degree + count))
+                    for value in values.values():
+                        self.assertAlmostEqual(value * 10, round(value * 10))
+                    for variable in VARIABLES:
+                        symbol = variable['symbol']
+                        self.assertTrue(0 <= values[symbol] <= 1)
+                        self.assertTrue(.1 <= values[symbol+'_scale'] <= 1)
+                        self.assertTrue(.1 <= values[symbol+'_minimum'] <= .3)
                     for i, step in enumerate(steps):
                         values[f'q4_time_{i}'] = step['time']
                         values[f'q4_value_{i}'] = step['value']
                     data = build_configuration(values)
-                    result = integrate_model(data)
-                    trajectory = np.array(result['trajectory'])
                     self.assertEqual(data['interval'], [0, 1])
                     self.assertEqual(data['polynomial_degree'], degree)
                     self.assertEqual(len(data['perturbation_parameters']['q4_steps']), count)
-                    self.assertTrue(np.isfinite(trajectory).all())
-                    self.assertGreaterEqual(trajectory.min(), 0)
-                    self.assertLessEqual(trajectory.max(), 1)
+                    self.assertEqual(len(set(step['time'] for step in steps)), count)
+                    self.assertEqual(steps[0]['time'], 0)
+                    for step in steps:
+                        self.assertTrue(0 <= step['time'] < 1)
+                        self.assertAlmostEqual(step['time'] * 10, round(step['time'] * 10))
 
     def test_nonconstant_polynomials_drive_coupled_state_evolution(self):
         form = complete_form(1)
@@ -493,7 +502,7 @@ class FlaskWorkflowTests(unittest.TestCase):
         for i, step in enumerate(steps):
             fields[f'q4_time_{i}'] = step['time']
             fields[f'q4_value_{i}'] = step['value']
-        self.assertEqual(len(integrate_model(build_configuration(fields))['solution']), 15)
+        self.assertEqual(len(build_configuration(fields)['initial_variable_values']), 15)
         self.assertEqual(list(self.paths['PATH_TO_CALC_STORAGE_FILE'].iterdir()), [])
         for settings in [
             {}, {'t_start': 1, 't_end': 0, 'polynomial_degree': 2, 'step_count': 3},
@@ -506,13 +515,12 @@ class FlaskWorkflowTests(unittest.TestCase):
                 self.assertEqual(failure.status_code, 400)
                 self.assertIn('error', failure.get_json())
 
-    def test_random_endpoint_reports_failed_selection_without_saving(self):
-        with patch('app.routes.main.random_form_values', side_effect=ValueError('No stable example')):
-            response = self.client.post('/random-scenario', json={
-                't_start': 0, 't_end': 1, 'polynomial_degree': 2, 'step_count': 3,
-            })
+    def test_random_endpoint_reports_insufficient_step_times_without_saving(self):
+        response = self.client.post('/random-scenario', json={
+            't_start': 0, 't_end': .1, 'polynomial_degree': 2, 'step_count': 3,
+        })
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.get_json()['error'], 'No stable example')
+        self.assertIn('q₄', response.get_json()['error'])
         self.assertEqual(list(self.paths['PATH_TO_CALC_STORAGE_FILE'].iterdir()), [])
 
     def test_real_calculation_generates_unclipped_json_plots_and_pdf(self):

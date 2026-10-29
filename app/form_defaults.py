@@ -56,50 +56,32 @@ def form_values(data=None):
 
 
 def random_form_values(start, end, degree, step_count, rng=None):
-    """Return a synthetic scenario only after solving it on the chosen interval."""
-    from app.services.calculation_service import build_configuration, integrate_model
-
+    """Draw one set of parameters; integration belongs to the Calculate action."""
     rng = rng or random.Random()
-    number = lambda low, high: round(rng.uniform(low, high), 6)
-    for _ in range(16):
-        values, _ = form_values()
-        values.update(t_start=start, t_end=end, polynomial_degree=degree)
-        for i, variable in enumerate(VARIABLES):
-            symbol = variable['symbol']
-            values[symbol] = number(DEMO_INITIAL[i] - .05, DEMO_INITIAL[i] + .05)
-            values[symbol+'_scale'] = number(DEMO_SCALES[i] * .85, DEMO_SCALES[i] * 1.15)
-            values[symbol+'_minimum'] = number(.10, .35)
-        for factor, offset, amplitude, phase in [
-            ('q1', (.45, .55), (.18, .25), (-.3, .3)),
-            ('q2', (.40, .50), (.14, .20), (.8, 1.4)),
-        ]:
-            values[factor+'_a'] = number(*offset)
-            values[factor+'_b'] = number(*amplitude)
-            values[factor+'_c'] = number(1.6 * math.pi, 2.4 * math.pi)
-            values[factor+'_d'] = number(*phase)
-        values['q5_a'] = number(.10, .20)
-        values['q5_b'] = number(.20, .30)
-        steps = [{'time': 0 if i == 0 else float(f'{end * ((i + rng.uniform(-.2, .2)) / step_count):.12g}'),
-                  'value': number(.06, .24)} for i in range(step_count)]
-        for edges in EDGES:
-            for edge in edges:
-                x = values[f"L{edge['variable']}"]
-                coefficients = [0, number(.55, .75), number(-.18, .18), number(-.06, .06)]
-                # Preserve the initial gain for every selected polynomial order.
-                coefficients[0] = round(number(.87, .95) - sum(
-                    coefficients[k] * x**k for k in range(1, degree + 1)), 6)
-                for k, coefficient in enumerate(coefficients):
-                    values[f"f{edge['function']}_A{k}"] = coefficient
-        fields = dict(values)
-        for i, step in enumerate(steps):
-            fields[f'q4_time_{i}'] = step['time']
-            fields[f'q4_value_{i}'] = step['value']
-        try:
-            result = integrate_model(build_configuration(fields))
-        except ValueError:
-            continue
-        # Reject rather than clip trajectories. This condition only selects
-        # generated examples; the actual equations and solver remain unchanged.
-        if all(0 <= value <= 1 for row in result['trajectory'] for value in row):
-            return values, steps
-    raise ValueError('Не удалось подобрать устойчивый случайный сценарий на выбранном интервале. Попробуйте ещё раз.')
+    number = lambda low, high: rng.randint(round(low * 10), round(high * 10)) / 10
+    last_tick = math.ceil(end * 10) - 1
+    if step_count - 1 > last_tick:
+        raise ValueError('Для такого количества ступеней q₄ недостаточно разных времён с шагом 0,1. Уменьшите количество ступеней или увеличьте конец интервала.')
+    values = dict(t_start=start, t_end=end, polynomial_degree=degree)
+    for variable in VARIABLES:
+        symbol = variable['symbol']
+        values[symbol] = number(0, 1)
+        values[symbol+'_scale'] = number(.1, 1)
+        values[symbol+'_minimum'] = number(.1, .3)
+    for factor, offset, amplitude, phase in [
+        ('q1', (.4, .6), (.1, .3), (-.3, .3)),
+        ('q2', (.4, .5), (.1, .2), (.8, 1.4)),
+    ]:
+        values[factor+'_a'] = number(*offset)
+        values[factor+'_b'] = number(*amplitude)
+        values[factor+'_c'] = number(5, 7.5)
+        values[factor+'_d'] = number(*phase)
+    values['q5_a'] = number(.1, .2)
+    values['q5_b'] = number(.2, .3)
+    times = [0] + [tick / 10 for tick in sorted(rng.sample(range(1, last_tick + 1), step_count - 1))]
+    steps = [{'time': time, 'value': number(.1, .2)} for time in times]
+    for edges in EDGES:
+        for edge in edges:
+            for k, bounds in enumerate(((.1, 1), (.5, .8), (-.2, .2), (-.1, .1))):
+                values[f"f{edge['function']}_A{k}"] = number(*bounds)
+    return values, steps
