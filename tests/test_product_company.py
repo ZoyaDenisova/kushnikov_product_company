@@ -290,6 +290,29 @@ class ChartLabelTests(unittest.TestCase):
 
 
 class IntegrationTests(unittest.TestCase):
+    def test_saved_bank_has_200_unique_scenarios_and_reproduces_validated_results(self):
+        path = Path(__file__).resolve().parents[1] / 'app/data/tested_scenarios.json'
+        bank = json.loads(path.read_text(encoding='utf-8'))
+        self.assertEqual(bank['count'], 200)
+        self.assertEqual(len(bank['scenarios']), 200)
+        self.assertEqual(len({json.dumps(s['values'], sort_keys=True) for s in bank['scenarios']}), 200)
+        for entry in bank['scenarios']:
+            with self.subTest(scenario=entry['id']):
+                self.assertEqual(set(entry['validation']), {'0','1','2','3'})
+                result = integrate_model(build_configuration(entry['values']))
+                trajectory = np.array(result['trajectory'])
+                self.assertTrue(np.isfinite(trajectory).all())
+                self.assertGreaterEqual(trajectory.min(), 0)
+                self.assertLessEqual(trajectory.max(), 1)
+                np.testing.assert_allclose(result['solution'], entry['validation']['3']['final'], rtol=1e-9, atol=1e-10)
+
+    def test_bank_selection_returns_an_independent_copy(self):
+        first, _ = random_form_values(0,1,3,rng=random.Random(42))
+        expected = dict(first)
+        first['L1'] = 999
+        second, _ = random_form_values(0,1,3,rng=random.Random(42))
+        self.assertEqual(second, expected)
+
     def test_demo_exposes_curvature_and_state_feedback_without_blowup(self):
         fields, steps = form_values()
         for i, step in enumerate(steps):
@@ -540,12 +563,12 @@ class FlaskWorkflowTests(unittest.TestCase):
     def test_random_endpoint_preserves_settings_and_does_not_save_a_calculation(self):
         with patch('app.form_defaults.random.Random', return_value=random.Random(42)):
             response = self.client.post('/random-scenario', json={
-                't_start': .15, 't_end': .95, 'polynomial_degree': 3, 'step_count': 5,
+                't_start': 0, 't_end': 1, 'polynomial_degree': 3, 'step_count': 5,
             })
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
         fields, steps = payload['values'], payload['steps']
-        self.assertEqual([fields['t_start'], fields['t_end']], [.15, .95])
+        self.assertEqual([fields['t_start'], fields['t_end']], [0, 1])
         self.assertEqual(fields['polynomial_degree'], 3)
         self.assertEqual(steps, [])
         for i, step in enumerate(steps):
@@ -563,12 +586,12 @@ class FlaskWorkflowTests(unittest.TestCase):
                 self.assertEqual(failure.status_code, 400)
                 self.assertIn('error', failure.get_json())
 
-    def test_random_endpoint_supports_short_intervals_without_steps(self):
+    def test_random_endpoint_rejects_unverified_interval_without_saving(self):
         response = self.client.post('/random-scenario', json={
             't_start': 0, 't_end': .1, 'polynomial_degree': 2, 'step_count': 3,
         })
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json()['steps'], [])
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('0–1', response.get_json()['error'])
         self.assertEqual(list(self.paths['PATH_TO_CALC_STORAGE_FILE'].iterdir()), [])
 
     def test_real_calculation_generates_unclipped_json_plots_and_pdf(self):

@@ -1,6 +1,9 @@
 import random
+import json
+from functools import lru_cache
+from pathlib import Path
 
-from app.model import EDGES, Q_POLYNOMIAL_FIELDS, VARIABLES, PERTURBATIONS
+from app.model import EDGES, Q_POLYNOMIAL_FIELDS, VARIABLES, PERTURBATIONS, MODEL
 
 # Editable, synthetic example; these are not fitted company data or numbers
 # copied from the rejected implementation in the assignment.
@@ -53,22 +56,21 @@ def form_values(data=None):
     return values, steps
 
 
+@lru_cache(maxsize=1)
+def _scenario_bank():
+    bank = json.loads(Path(__file__).with_name('data').joinpath('tested_scenarios.json').read_text(encoding='utf-8'))
+    if bank['model_version'] != MODEL['version'] or len(bank['scenarios']) != 200:
+        raise ValueError('Библиотека сценариев не соответствует модели. Обновите проверенные наборы.')
+    return bank
+
+
 def random_form_values(start, end, degree, step_count=None, rng=None):
-    """Draw one set of parameters; integration belongs to the Calculate action."""
-    rng = rng or random.Random()
-    number = lambda low, high: rng.randint(round(low * 10), round(high * 10)) / 10
-    values = dict(t_start=start, t_end=end, polynomial_degree=degree)
-    for variable in VARIABLES:
-        symbol = variable['symbol']
-        values[symbol] = number(0, 1)
-        values[symbol+'_scale'] = number(.1, 1)
-        values[symbol+'_minimum'] = number(.1, .3)
-    for i in range(1, 6):
-        for k, bounds in enumerate(((0, .5), (-.2, .3), (-.2, .2), (-.1, .1))):
-            values[f'q{i}_A{k}'] = number(*bounds)
-    steps = []
-    for edges in EDGES:
-        for edge in edges:
-            for k, bounds in enumerate(((.1, 1), (.5, .8), (-.2, .2), (-.1, .1))):
-                values[f"f{edge['function']}_A{k}"] = number(*bounds)
-    return values, steps
+    """Choose a precomputed, tested scenario without running the solver."""
+    bank = _scenario_bank()
+    if [start, end] != bank['interval']:
+        raise ValueError('Готовые наборы проверены на интервале 0–1. Для другого интервала задайте параметры вручную.')
+    if degree not in bank['validated_degrees']:
+        raise ValueError('Для этой степени полиномов нет проверенных наборов.')
+    selected = (rng or random.Random()).choice(bank['scenarios'])
+    values = dict(selected['values'], polynomial_degree=degree)
+    return values, []

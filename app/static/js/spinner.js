@@ -73,7 +73,7 @@ if (form) {
         const intervalStart = form.elements.namedItem('t_start').value;
         const intervalEnd = form.elements.namedItem('t_end').value;
         randomButton.disabled = true;
-        status.textContent = 'Заполняем случайные значения...';
+        status.textContent = 'Выбираем проверенный набор...';
         try {
             const response = await fetch(randomButton.dataset.randomUrl, {
                 method: 'POST',
@@ -95,7 +95,7 @@ if (form) {
             fitCoefficients();
             form.querySelectorAll('.user-invalid').forEach(input => input.classList.remove('user-invalid'));
             progress();
-            status.textContent = 'Все разделы заполнены случайными значениями.';
+            status.textContent = '';
         } catch (error) {
             status.textContent = error.message || 'Не удалось сгенерировать параметры. Попробуйте ещё раз.';
         } finally {
